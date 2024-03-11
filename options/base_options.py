@@ -18,45 +18,38 @@ class BaseOptions:
         self.parser.add_argument(
             '--filename',
             type=str,
-            default='learning.csv',
+            default='energy_descriptor.csv',
             help='name of the csv file',
             )
 
         self.parser.add_argument(
             '--root', 
             type=str, 
-            default='data/datasets/rhcaa_learning',
+            default='data/datasets/',
             help='path to the folder containing the csv files',
             )    
+        
+        self.parser.add_argument(
+            '--folds',
+            type=int,
+            default=5,
+            help='Number of folds',
+            )
+        
+        self.parser.add_argument(
+            '--max_d',
+            type=float,
+            default=10,
+            help='Maximum distance',
+            )
+        
+        self.parser.add_argument(
+            '--step',
+            type=float,
+            default=0.5,
+            help='Step',
+            )
 
-        self.parser.add_argument(
-            '--filename_TiC',
-            type=str,
-            default='final_test.csv',
-            help='name of the csv file for the final test',
-            )
-        
-        self.parser.add_argument(
-            '--root_TiC', 
-            type=str, 
-            default='data/datasets/rhcaa_final_test',
-            help='path to the folder containing the csv files',
-            )
-
-        self.parser.add_argument(
-            '--filename_final_test',
-            type=str,
-            default='final_test.csv',
-            help='name of the csv file for the final test',
-            )
-        
-        self.parser.add_argument(
-            '--root_final_test', 
-            type=str, 
-            default='data/datasets/rhcaa_final_test',
-            help='path to the folder containing the csv files',
-            )
-        
         self.parser.add_argument(
             '--log_dir_results',
             type=str,
@@ -64,19 +57,9 @@ class BaseOptions:
             help='path to the folder where the results will be saved',
             )
         
-        self.parser.add_argument(
-            '--mol_cols',
-            type=str,
-            default=['Ligand', 'substrate', 'boron reagent'],
-            help='column names of the reactant and product smiles',
-            )
+
         
-        self.parser.add_argument(
-            '--folds',
-            type=int,
-            default=10,
-            help='Number of folds',
-            )
+
         
         self.parser.add_argument(
             '--n_classes',
