@@ -30,8 +30,8 @@ def create_st_parity_plot(real, predicted, figure_name, save_path=None):
     plt.figure(figsize=(8, 8))
     plt.scatter(real, predicted, alpha=0.7)
     plt.plot([min(real), max(real)], [min(real), max(real)], color='red', linestyle='--')
-    plt.xlabel('Real Values')
-    plt.ylabel('Predicted Values')
+    plt.xlabel('DFT Calculated Internal Energy (eV)')
+    plt.ylabel('GNN Predicted Internal Energy (eV)')
     
     # Display R2, MAE, and RMSE as text on the plot
     textstr = f'$R^2$ = {r2:.3f}\nMAE = {mae:.3f}\nRMSE = {rmse:.3f}'
@@ -59,7 +59,7 @@ def create_it_parity_plot(real, predicted, index, figure_name, save_path=None):
                        'Idx': index})
 
     # Create a scatter plot
-    fig = px.scatter(df, x='Real', y='Predicted', text = 'Idx', labels={'x': 'Real Values', 'y': 'Predicted Values'}, hover_data=['Idx', 'Real', 'Predicted'])
+    fig = px.scatter(df, x='Real', y='Predicted', text = 'Idx', labels={'x': 'DFT Calculated Internal Energy (eV)', 'y': 'GNN Predicted Internal Energy (eV)'}, hover_data=['Idx', 'Real', 'Predicted'])
     fig.add_trace(go.Scatter(x=real, y=real, mode='lines', name='Perfect Fit', line=dict(color='red', dash='dash')))
 
     # Customize the layout

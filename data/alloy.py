@@ -102,13 +102,15 @@ class carbide(interstitial_alloy):
         nbr_fea_idx = np.array(nbr_fea_idx).transpose()
         nbr_fea = np.array(nbr_fea_t)
 
-        return torch.tensor(nbr_fea_idx), torch.tensor(nbr_fea, dtype=torch.float)
+        return torch.tensor(nbr_fea_idx), \
+            torch.tensor(nbr_fea, dtype=torch.float)
     
 
     def _get_energy(self, file_name):
         e = np.array(self.energy.loc[file_name, 'dft'])
         en_norm = np.array(e - self.min_energy)
-        return torch.tensor(e).reshape(1), torch.tensor(en_norm).reshape(1)
+        return torch.tensor(e, dtype=torch.float).reshape(1), \
+            torch.tensor(en_norm, dtype=torch.float).reshape(1)
     
     def _get_fold(self, file_name):
         fold = self.energy.loc[file_name, 'fold']
