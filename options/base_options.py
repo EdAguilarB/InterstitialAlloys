@@ -96,7 +96,7 @@ class BaseOptions:
         self.parser.add_argument(
             '--pooling',
             type=str,
-            default='gap',
+            default='gadp',
             help='Pooling method',
             )
     
@@ -173,7 +173,7 @@ class BaseOptions:
         self.parser.add_argument(
             '--early_stopping',
             type=int,
-            default=6,
+            default=30,
             help='Early stopping',
             )
         

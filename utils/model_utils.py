@@ -24,7 +24,7 @@ def calculate_metrics(y_true:list, y_predicted: list,  task = 'r'):
         mae = mean_absolute_error(y_true=y_true, y_pred=y_predicted)
         rmse = sqrt(mean_squared_error(y_true=y_true, y_pred=y_predicted))  
         error = [(y_predicted[i]-y_true[i]) for i in range(len(y_true))]
-        prctg_error = [ abs(error[i] / y_true[i]) for i in range(len(error))]
+        prctg_error = [ abs(error[i] / y_true[i]) for i in range(len(error)) if y_true[i] != 0]
         mbe = np.mean(error)
         mape = np.mean(prctg_error)
         error_std = np.std(error)
@@ -58,7 +58,7 @@ def train_network(model, train_loader, device):
         batch = batch.to(device)
         model.optimizer.zero_grad()
         out = model(batch)
-        loss = torch.sqrt(model.loss(out, torch.unsqueeze(batch.y, dim=1)))
+        loss = torch.sqrt(model.loss(out, torch.unsqueeze(batch.y.float(), dim=1)))
         loss.backward()
         model.optimizer.step()
 
@@ -88,7 +88,7 @@ def predict_network(model, loader):
 
         y_pred.append(out.cpu().detach().numpy())
         y_true.append(batch.y.cpu().detach().numpy())
-        idx.append(batch.idx.cpu().detach().numpy())
+        idx.append(batch.file_name)
 
     y_pred = np.concatenate(y_pred, axis=0).ravel()
     y_true = np.concatenate(y_true, axis=0).ravel()
@@ -102,6 +102,7 @@ def network_report(log_dir,
                    outer,
                    inner, 
                    loss_lists,
+                   lr_list,
                    save_all,
                    model, 
                    model_params,
@@ -129,7 +130,7 @@ def network_report(log_dir,
         torch.save(model, "{}/model.pth".format(log_dir))
         torch.save(model_params, "{}/model_params.pth".format(log_dir))
     torch.save(test_loader, "{}/test_loader.pth".format(log_dir)) 
-    loss_function = 'RMSE_%'
+    loss_function = 'RMSE_eV'
 
     #4) loss trend during training
     train_list = loss_lists[0]
@@ -138,9 +139,9 @@ def network_report(log_dir,
     if train_list is not None and val_list is not None and test_list is not None:
         with open('{}/{}.csv'.format(log_dir, 'learning_process'), 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-            writer.writerow(["Epoch", "Train_{}".format(loss_function), "Val_{}".format(loss_function), "Test_{}".format(loss_function)])
+            writer.writerow(["Epoch", "Train_{}".format(loss_function), "Val_{}".format(loss_function), "Test_{}".format(loss_function), "Learning Rate"])
             for i in range(len(train_list)):
-                writer.writerow([(i+1)*5, train_list[i], val_list[i], test_list[i]])
+                writer.writerow([(i+1)*5, train_list[i], val_list[i], test_list[i], lr_list[i]])
         create_training_plot(df='{}/{}.csv'.format(log_dir, 'learning_process'), save_path='{}'.format(log_dir))
 
 
@@ -178,27 +179,12 @@ def network_report(log_dir,
     file1.write("***************\n")
 
     y_pred, y_true, idx = predict_network(model, test_loader)
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
 
-    pd.DataFrame({'real_%top': y_true, 'predicted_%top': y_pred, 'index': idx}).to_csv("{}/predictions_test_set.csv".format(log_dir))
-
-    face_pred = np.where(y_pred > 50, 1, 0)
-    face_true = np.where(y_true > 50, 1, 0)
-    metrics, metrics_names = calculate_metrics(face_true, face_pred, task = 'c')
+    pd.DataFrame({'DFT_energy(eV)': y_true, 'GNN_energy(eV)': y_pred, 'index': idx}).to_csv("{}/predictions_test_set.csv".format(log_dir))
 
     file1.write("Test set\n")
     file1.write("Set size = {}\n".format(N_test))
-
-    for name, value in zip(metrics_names, metrics):
-        file1.write("{} = {:.3f}\n".format(name, value))
-    
-    error = abs(y_pred-y_true)
-    y_true = y_true[error<50]
-    y_pred = y_pred[error<50]
-    idx = idx[error<50]
-
-    file1.write("Test Set Total Correct Face of Addition Predictions = {}\n".format(len(y_true)))
-
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
 
     for name, value in zip(metrics_names, metrics):
         file1.write("{} = {:.3f}\n".format(name, value))
@@ -224,9 +210,9 @@ def network_report(log_dir,
             outliers_error_list.append(error_test[sample])
             index_list.append(sample)
             if counter < 10:
-                file1.write("0{}) {}    Error: {:.2f} %    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+                file1.write("0{}) {}    Error: {:.2f} eV    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
             else:
-                file1.write("{}) {}    Error: {:.2f} %s    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+                file1.write("{}) {}    Error: {:.2f} eV    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
 
     file1.close()
 
@@ -234,17 +220,15 @@ def network_report(log_dir,
 
 
 def network_outer_report(log_dir: str,
-                         outer: int,):
+                         outer: int,
+                         folds: int = 5,):
     
     
-    accuracy, precision, recall, r2, mae, rmse = [], [], [], [], [], []
+    r2, mae, rmse = [], [], [] 
 
-    files = [log_dir+f'Fold_{i}_val_set/performance.txt' for i in range(1, 11) if i != outer]
+    files = [log_dir+f'Fold_{i}_val_set/performance.txt' for i in range(1, folds+1) if i != outer]
 
     # Define regular expressions to match metric lines
-    accuracy_pattern = re.compile(r"Accuracy = (\d+\.\d+)")
-    precision_pattern = re.compile(r"Precision = (\d+\.\d+)")
-    recall_pattern = re.compile(r"Recall = (\d+\.\d+)")
     r2_pattern = re.compile(r"R2 = (\d+\.\d+)")
     mae_pattern = re.compile(r"MAE = (\d+\.\d+)")
     rmse_pattern = re.compile(r"RMSE = (\d+\.\d+)")
@@ -260,12 +244,6 @@ def network_outer_report(log_dir: str,
             # Check if "Test set" is in the set content
             if "Test set" in set_content:
                 # Extract metric values using regular expressions
-                accuracy_match = accuracy_pattern.search(set_content)
-                accuracy.append(float(accuracy_match.group(1)))
-                precision_match = precision_pattern.search(set_content)
-                precision.append(float(precision_match.group(1)))
-                recall_match = recall_pattern.search(set_content)
-                recall.append(float(recall_match.group(1)))
                 r2_match = r2_pattern.search(set_content)
                 try:
                     r2.append(float(r2_match.group(1)))
@@ -277,12 +255,6 @@ def network_outer_report(log_dir: str,
                 rmse.append(float(rmse_match.group(1)))
 
     # Calculate mean and standard deviation for each metric
-    accuracy_mean = np.mean(accuracy)
-    accuracy_std = np.std(accuracy)
-    precision_mean = np.mean(precision)
-    precision_std = np.std(precision)
-    recall_mean = np.mean(recall)
-    recall_std = np.std(recall)
     r2_mean = np.mean(r2)
     r2_std = np.std(r2)
     mae_mean = np.mean(mae)
@@ -294,9 +266,6 @@ def network_outer_report(log_dir: str,
     file1 = open("{}/performance_outer_test_fold{}.txt".format(log_dir, outer), "w")
     file1.write("---------------------------------------------------------\n")
     file1.write("Test Set Metrics (mean ± std)\n")
-    file1.write("Accuracy: {:.3f} ± {:.3f}\n".format(accuracy_mean, accuracy_std))
-    file1.write("Precision: {:.3f} ± {:.3f}\n".format(precision_mean, precision_std))
-    file1.write("Recall: {:.3f} ± {:.3f}\n".format(recall_mean, recall_std))
     file1.write("R2: {:.3f} ± {:.3f}\n".format(r2_mean, r2_std))
     file1.write("MAE: {:.3f} ± {:.3f}\n".format(mae_mean, mae_std))
     file1.write("RMSE: {:.3f} ± {:.3f}\n".format(rmse_mean, rmse_std))
