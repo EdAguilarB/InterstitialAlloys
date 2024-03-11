@@ -102,7 +102,7 @@ class carbide(interstitial_alloy):
         nbr_fea_idx = np.array(nbr_fea_idx).transpose()
         nbr_fea = np.array(nbr_fea_t)
 
-        return torch.tensor(nbr_fea_idx), torch.tensor(nbr_fea)
+        return torch.tensor(nbr_fea_idx), torch.tensor(nbr_fea, dtype=torch.float)
     
 
     def _get_energy(self, file_name):
