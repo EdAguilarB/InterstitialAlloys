@@ -16,7 +16,7 @@ class interstitial_alloy(Dataset):
         # This variables must be initialized before calling the super().__init__ method as super().__init__ 
         # will call the download and process methods, which require the variables to be initialized to run properly
 
-        self._name = "BaseDataset"
+        #self._name = "BaseDataset"
         self.filename = filename
         self.max_d = max_d
         self.step = step

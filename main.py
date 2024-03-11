@@ -19,10 +19,18 @@ def train_networt_nested_cv():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create the dataset
-    data = carbide(opt = opt, root=opt.root, filename=opt.filename, max_d=opt.max_d, step=opt.step, name='Mo2C_222')
+    MoC = carbide(opt = opt, root=opt.root, filename=opt.filename, max_d=opt.max_d, step=opt.step, name='Mo2C_222')
+
+    print("Dataset type: ", type(MoC))
+    print("Dataset length: ", MoC.len())
+    print("Dataset node features: ", MoC.num_features)
+    print("Dataset target: ", MoC.num_classes)
+    print("Dataset sample: ", MoC[0])
+    print("Sample  nodes: ", MoC[0].num_nodes)
+    print("Sample  edges: ", MoC[0].num_edges)
 
 
 if __name__ == "__main__":
     train_networt_nested_cv()
-    
+
 

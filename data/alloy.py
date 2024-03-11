@@ -26,10 +26,8 @@ class carbide(interstitial_alloy):
         if self._include_fold:
             filename = filename[:-4] + '_folds' + filename[-4:]
             try:
-                ic(os.path.join(root, name,  f'{filename}'))
                 pd.read_csv(os.path.join(root, name, f'{filename}'))
             except:
-                ic('FFFF')
                 self._split_data(root, name, opt.folds)
                 
 
