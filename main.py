@@ -26,7 +26,7 @@ def train_networt_nested_cv():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create the dataset
-    carbides = carbide(opt = opt, root=opt.root, filename=opt.filename, max_d=opt.max_d, step=opt.step, name='Mo2C_222')
+    carbides = carbide(opt = opt, root=opt.root, filename=opt.filename, max_d=opt.max_d, step=opt.step, name=opt.exp_name)
 
     # Create the loaders and nested cross validation iterators
     ncv_iterators = create_loaders(carbides, opt)
@@ -122,7 +122,7 @@ def train_networt_nested_cv():
 
             # Report the model performance
             network_report(
-                log_dir=f"{current_dir}/{opt.log_dir_results}/Mo2C_222/results_GNN/",
+                log_dir=f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/results_GNN/",
                 loaders=(train_loader, val_loader, test_loader),
                 outer=outer,
                 inner=real_inner,
@@ -141,7 +141,7 @@ def train_networt_nested_cv():
         print('Generating outer report')
 
         network_outer_report(
-            log_dir=f"{current_dir}/{opt.log_dir_results}/Mo2C_222/results_GNN/Fold_{outer}_test_set/",
+            log_dir=f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/results_GNN/Fold_{outer}_test_set/",
             outer=outer,
             folds=opt.folds,
         )
@@ -166,7 +166,7 @@ def train_networt_nested_cv():
 opt = BaseOptions().parse()
 
 if __name__ == "__main__":
-    #train_networt_nested_cv()
+    train_networt_nested_cv()
     #train_tml_model_nested_cv(opt, os.getcwd())
     #predict_final_test(os.getcwd(), opt)
     #for i in range(100, 1001, 100):

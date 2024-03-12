@@ -421,9 +421,9 @@ def tml_report(log_dir,
             outliers_error_list.append(error_test[sample])
             index_list.append(sample)
             if counter < 10:
-                file1.write("0{}) {}    Error: {:.2f} %    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+                file1.write("0{}) {}    Error: {:.3f} eV    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
             else:
-                file1.write("{}) {}    Error: {:.2f} %s    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+                file1.write("{}) {}    Error: {:.3f} eV    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
 
     file1.close()
 
