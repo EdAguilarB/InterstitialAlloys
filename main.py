@@ -7,7 +7,7 @@ from copy import deepcopy
 from call_methods import make_network, create_loaders
 from data.alloy import carbide
 from utils.model_utils import train_network, eval_network, network_report, network_outer_report
-from utils.experiment_utils import train_tml_model_nested_cv, predict_final_test
+from utils.experiment_utils import train_tml_model_nested_cv, predict_final_test, plot_results
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -153,7 +153,9 @@ opt = BaseOptions().parse()
 
 if __name__ == "__main__":
     #train_networt_nested_cv()
-    #train_tml_model_nested_cv(opt, os.getcwd())
+    train_tml_model_nested_cv(opt, os.getcwd())
     predict_final_test(os.getcwd(), opt)
+    #plot_results(os.path.join(os.getcwd(), opt.log_dir_results), opt)
+    
 
 

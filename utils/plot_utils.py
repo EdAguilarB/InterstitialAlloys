@@ -119,3 +119,35 @@ def create_training_plot(df, save_path):
     plt.savefig('{}/loss_vs_epochs.png'.format(save_path), bbox_inches='tight')
 
     plt.close()
+
+
+
+def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, save_path:str, tml_algorithm:str):
+
+    bar_width = 0.35
+
+    mean_gnn, mean_tml = means
+    std_gnn, std_tml = stds
+
+    folds = list(range(1, 11))
+    index = np.arange(10)
+
+    plt.bar(index, mean_gnn, bar_width, label='GNN Approach', yerr=std_gnn, capsize=5)
+    plt.bar(index+bar_width, mean_tml, bar_width, label=f'{tml_algorithm.upper()} Approach', yerr=std_tml, capsize=5)
+
+    plt.ylim(min*.99, max *1.01)
+    plt.xlabel('Fold Used as Test Set', fontsize = 16)
+
+    label = 'Mean $R^2$ Value' if metric == 'R2' else f'Mean {metric} Value'
+    plt.ylabel(label, fontsize = 16)
+
+    plt.xticks(index + bar_width / 2, list(folds))
+
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+
+    plt.savefig(os.path.join(save_path, f'{metric}_GNN_vs_TML'), dpi=300, bbox_inches='tight')
+
+    print('Plot {}_GNN_vs_TML has been saved in the directory {}'.format(metric,save_path))
+
+    plt.clf()

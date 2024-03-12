@@ -384,6 +384,8 @@ def tml_report(log_dir,
 
     metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
 
+    pd.DataFrame({'DFT_energy(eV)': y_true, 'AtomisticPotential_energy(eV)': y_pred, 'index': idx}).to_csv("{}/predictions_test_set.csv".format(log_dir))
+
     file1.write("Test set\n")
     file1.write("Set size = {}\n".format(N_val))
 
@@ -419,3 +421,42 @@ def tml_report(log_dir,
 
     return 'Report saved in {}'.format(log_dir)
 
+
+
+
+######################################
+######################################
+######################################
+#########  General functions #########
+######################################
+######################################
+######################################
+
+
+
+
+def extract_metrics(file):
+
+    metrics = {'Accuracy': None, 'Precision': None, 'Recall': None, 'R2': None, 'MAE': None, 'RMSE': None}
+
+    with open(file, 'r') as file:
+            content = file.read()
+
+    # Define regular expressions to match metric lines
+    r2_pattern = re.compile(r"R2: (\d+\.\d+) ± (\d+\.\d+)")
+    mae_pattern = re.compile(r"MAE: (\d+\.\d+) ± (\d+\.\d+)")
+    rmse_pattern = re.compile(r"RMSE: (\d+\.\d+) ± (\d+\.\d+)")
+
+    r2_match = r2_pattern.search(content)
+    mae_match = mae_pattern.search(content)
+    rmse_match = rmse_pattern.search(content)
+
+    # Update the metrics dictionary with extracted values
+    if r2_match:
+        metrics['R2'] = {'mean': float(r2_match.group(1)), 'std': float(r2_match.group(2))}
+    if mae_match:
+        metrics['MAE'] = {'mean': float(mae_match.group(1)), 'std': float(mae_match.group(2))}
+    if rmse_match:
+        metrics['RMSE'] = {'mean': float(rmse_match.group(1)), 'std': float(rmse_match.group(2))}
+
+    return metrics

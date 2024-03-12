@@ -1,5 +1,6 @@
 import argparse
 import os
+import numpy as np
 import pandas as pd
 import sys
 import joblib
@@ -10,7 +11,8 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 from options.base_options import BaseOptions
 from data.alloy import carbide
-from utils.model_utils import network_outer_report, split_data, tml_report, network_report
+from utils.model_utils import network_outer_report, split_data, tml_report, network_report, extract_metrics
+from utils.plot_utils import create_bar_plot
 
 from icecream import ic
 
@@ -97,8 +99,6 @@ def train_tml_model_nested_cv(opt: argparse.Namespace, parent_dir:str) -> None:
     print('All runs completed')
 
 
-
-
 def predict_final_test(parent_dir:str, opt: argparse.Namespace) -> None:
 
     opt = BaseOptions().parse()
@@ -162,3 +162,89 @@ def predict_final_test(parent_dir:str, opt: argparse.Namespace) -> None:
         
         network_outer_report(log_dir=f"{experiments_tml}/Fold_{outer}_test_set/", 
                              outer=outer)
+        
+    print('All runs completed')
+
+
+def plot_results(exp_dir, opt: argparse.Namespace) -> None:
+
+    experiments_gnn = os.path.join(exp_dir, opt.exp_name, 'results_GNN')
+    experiments_tml = os.path.join(exp_dir, opt.exp_name, f'results_atomistic_potential')
+
+    r2_gnn, mae_gnn, rmse_gnn = [], [], []
+    r2_mlr, mae_mlr, rmse_mlr = [], [], []
+
+    results_all = pd.DataFrame(columns = ['index', 'Test_Fold', 'Val_Fold', 'Method', 'DFT_Calculated_Energy(eV)', 'ML_Predicted_Energy(eV)'])
+
+    for outer in range(1, opt.folds+1):
+
+        outer_gnn = os.path.join(experiments_gnn, f'Fold_{outer}_test_set')
+        outer_tml = os.path.join(experiments_tml, f'Fold_{outer}_test_set')
+
+        metrics_gnn = extract_metrics(file=outer_gnn+f'/performance_outer_test_fold{outer}.txt')
+        metrics_mlr = extract_metrics(file=outer_tml+f'/performance_outer_test_fold{outer}.txt')
+
+        r2_gnn.append(metrics_gnn['R2'])
+        mae_gnn.append(metrics_gnn['MAE'])
+        rmse_gnn.append(metrics_gnn['RMSE'])
+
+        r2_mlr.append(metrics_mlr['R2'])
+        mae_mlr.append(metrics_mlr['MAE'])
+        rmse_mlr.append(metrics_mlr['RMSE'])
+
+        for inner in range(1, opt.folds):
+    
+            real_inner = inner +1 if outer <= inner else inner
+            
+            gnn_dir = os.path.join(experiments_gnn, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+
+            df_gnn = pd.read_csv(gnn_dir+'/predictions_test_set.csv')
+            df_gnn['Test_Fold'] = outer
+            df_gnn['Val_Fold'] = real_inner
+            df_gnn['Method'] = 'GNN'
+
+            results_all = pd.concat([results_all, df_gnn], axis=0)
+
+            tml_dir = os.path.join(experiments_tml, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+
+            df_tml = pd.read_csv(tml_dir+'/predictions_test_set.csv')
+            df_tml['Test_Fold'] = outer
+            df_tml['Val_Fold'] = real_inner
+            df_tml['Method'] = 'AtomisticPotential'
+
+            results_all = pd.concat([results_all, df_tml], axis=0)
+
+
+    save_dir = f'{exp_dir}/GNN_vs_MLR'
+    os.makedirs(save_dir, exist_ok=True)
+    
+    mae_mean_gnn = np.array([entry['mean'] for entry in mae_gnn])
+    mae_gnn_std = np.array([entry['std'] for entry in mae_gnn])
+
+    mae_mean_mlr = np.array([entry['mean'] for entry in mae_mlr])
+    mae_mlr_std = np.array([entry['std'] for entry in mae_mlr])
+
+    rmse_mean_gnn = np.array([entry['mean'] for entry in rmse_gnn])
+    rmse_gnn_std = np.array([entry['std'] for entry in rmse_gnn])
+
+    rmse_mean_mlr = np.array([entry['mean'] for entry in rmse_mlr])
+    rmse_mlr_std = np.array([entry['std'] for entry in rmse_mlr])
+
+    minimun = np.min(np.array([
+        (mae_mean_gnn - mae_gnn_std).min(), 
+        (mae_mean_mlr - mae_mlr_std).min(),
+        (rmse_mean_gnn - rmse_gnn_std).min(), 
+        (rmse_mean_mlr - rmse_mlr_std).min()]))
+    
+    maximun = np.max(np.array([
+        (mae_mean_gnn + mae_gnn_std).max(),
+        (mae_mean_mlr + mae_mlr_std).max(),
+        (rmse_mean_gnn + rmse_gnn_std).max(), 
+        (rmse_mean_mlr + rmse_mlr_std).max()]))
+
+
+    create_bar_plot(means=(mae_mean_gnn, mae_mean_mlr), stds=(mae_gnn_std, mae_mlr_std), min = minimun, max = maximun, metric = 'MAE', save_path= save_dir, tml_algorithm='Atomistic Potential')
+    create_bar_plot(means=(rmse_mean_gnn, rmse_mean_mlr), stds=(rmse_gnn_std, rmse_mlr_std), min = minimun, max = maximun, metric = 'RMSE', save_path= save_dir, tml_algorithm='Atomistic Potential')
+
+
+    pass
