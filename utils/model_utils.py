@@ -106,7 +106,8 @@ def network_report(log_dir,
                    save_all,
                    model, 
                    model_params,
-                   best_epoch):
+                   best_epoch,
+                   normalize = False,):
 
 
     #1) Create a directory to store the results
@@ -179,6 +180,11 @@ def network_report(log_dir,
     file1.write("***************\n")
 
     y_pred, y_true, idx = predict_network(model, test_loader)
+
+    if normalize:
+        min_index = np.argmin(y_true)
+        y_pred = np.array([pred - y_pred[min_index] for pred in y_pred])
+
     metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
 
     pd.DataFrame({'DFT_energy(eV)': y_true, 'GNN_energy(eV)': y_pred, 'index': idx}).to_csv("{}/predictions_test_set.csv".format(log_dir))
@@ -272,3 +278,144 @@ def network_outer_report(log_dir: str,
     file1.write("---------------------------------------------------------\n")
 
     return 'Report saved in {}'.format(log_dir)
+
+
+
+######################################
+######################################
+######################################
+###########  TML functions ###########
+######################################
+######################################
+######################################
+
+def split_data(df:pd.DataFrame):
+        
+    for outer in np.unique(df['fold']):
+        proxy = copy(df)
+        test = proxy[proxy['fold'] == outer]
+
+        for inner in np.unique(df.loc[df['fold'] != outer, 'fold']):
+
+            val = proxy.loc[proxy['fold'] == inner]
+            train = proxy.loc[(proxy['fold'] != outer) & (proxy['fold'] != inner)]
+            yield deepcopy((train, val, test))
+
+
+
+def predict_tml(model, data:pd.DataFrame):
+    descriptors = ['c', 'bv', 'ang']
+    y_pred = model.predict(data[descriptors])
+    y_true = list(data['dft'])
+    idx = list(data['file'])
+    return np.array(y_pred), np.array(y_true), np.array(idx)
+
+
+def tml_report(log_dir,
+               outer, 
+                inner,
+               model, 
+               data, 
+               save_all=True,
+               normalize = False,):
+    
+    #1) create a directory to store the results
+    log_dir = "{}/Fold_{}_test_set/Fold_{}_val_set".format(log_dir, outer, inner)
+    os.makedirs(log_dir, exist_ok=True)
+
+    #2) Get time of the run
+    today = date.today()
+    today_str = str(today.strftime("%d-%b-%Y"))
+    time = str(datetime.now())[11:]
+    time = time[:8]
+    run_period = "{}, {}\n".format(today_str, time)
+
+    #3) Unfold train/val/test dataloaders
+    train_data, val_data, test_data = data[0], data[1], data[2]
+    N_train, N_val, N_test = len(train_data), len(val_data), len(test_data)
+    N_tot = N_train + N_val + N_test 
+
+    #4) Save dataframes for future use
+    if save_all:
+        train_data.to_csv("{}/train.csv".format(log_dir))
+        val_data.to_csv("{}/val.csv".format(log_dir))
+        pickle.dump(model, open("{}/model.sav".format(log_dir), 'wb'))
+
+    test_data.to_csv("{}/test.csv".format(log_dir))
+
+    #5) Performance Report
+    file1 = open("{}/performance.txt".format(log_dir), "w")
+    file1.write(run_period)
+    file1.write("---------------------------------------------------------\n")
+    file1.write("Traditional ML algorithm Performance\n")
+    file1.write("Dataset Size = {}\n".format(N_tot))
+    file1.write("c term coefficient = {}\n".format(model.coef_[0]))
+    file1.write("bv term coefficient = {}\n".format(model.coef_[1]))
+    file1.write("ang term coefficient = {}\n".format(model.coef_[2]))
+    file1.write("***************\n")
+
+    y_pred, y_true, idx = predict_tml(model, train_data)
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
+
+    file1.write("Training set\n")
+    file1.write("Set size = {}\n".format(N_train))
+
+    for name, value in zip(metrics_names, metrics):
+        file1.write("{} = {:.3f}\n".format(name, value))
+    
+    file1.write("***************\n")
+
+    y_pred, y_true, idx = predict_tml(model, val_data)
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
+
+    file1.write("Validation set\n")
+    file1.write("Set size = {}\n".format(N_val))
+
+    for name, value in zip(metrics_names, metrics):
+        file1.write("{} = {:.3f}\n".format(name, value))
+    
+    file1.write("***************\n")
+
+    y_pred, y_true, idx = predict_tml(model=model, data=test_data)
+
+    if normalize:
+        min_index = np.argmin(y_true)
+        y_pred = np.array([pred - y_pred[min_index] for pred in y_pred])
+
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
+
+    file1.write("Test set\n")
+    file1.write("Set size = {}\n".format(N_val))
+
+    for name, value in zip(metrics_names, metrics):
+        file1.write("{} = {:.3f}\n".format(name, value))
+
+    file1.write("---------------------------------------------------------\n")
+
+    create_st_parity_plot(real = y_true, predicted = y_pred, figure_name = 'outer_{}_inner_{}'.format(outer, inner), save_path = "{}".format(log_dir))
+    create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
+
+    file1.write("OUTLIERS (TEST SET)\n")
+    error_test = [(y_pred[i] - y_true[i]) for i in range(len(y_pred))]
+    abs_error_test = [abs(error_test[i]) for i in range(len(y_pred))]
+    std_error_test = np.std(error_test)
+
+    outliers_list, outliers_error_list, index_list = [], [], []
+
+    counter = 0
+
+    for sample in range(len(y_pred)):
+        if abs_error_test[sample] >= 3 * std_error_test:  
+            counter += 1
+            outliers_list.append(idx[sample])
+            outliers_error_list.append(error_test[sample])
+            index_list.append(sample)
+            if counter < 10:
+                file1.write("0{}) {}    Error: {:.2f} %    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+            else:
+                file1.write("{}) {}    Error: {:.2f} %s    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
+
+    file1.close()
+
+    return 'Report saved in {}'.format(log_dir)
+

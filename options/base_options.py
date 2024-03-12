@@ -9,10 +9,10 @@ class BaseOptions:
     def initialize(self):
 
         self.parser.add_argument(
-            '--experiment_name',
+            '--exp_name',
             type=str,
-            default='experiment',
-            help='name of the experiment',
+            default='Mo2C_222',
+            help='Name of the database/esperiment to do. Allowed values: Mo2C_222 or Ti2C_222',
             ),
 
         self.parser.add_argument(
