@@ -18,10 +18,11 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 class carbide(interstitial_alloy):
 
-    def __init__(self, opt:argparse.Namespace, root: str, filename: str, max_d: float, step: float, name:str, include_fold = True) -> None:
+    def __init__(self, opt:argparse.Namespace, root: str, filename: str, max_d: float, step: float, name:str, include_fold = True, norm=True) -> None:
 
         self._include_fold = include_fold
         self._name = name
+        self._norm = norm
 
         if self._include_fold:
             filename = filename[:-4] + '_folds' + filename[-4:]
@@ -33,10 +34,12 @@ class carbide(interstitial_alloy):
 
         
         root = os.path.join(root, name)
+
         
         self.energy = pd.read_csv(os.path.join(root, filename), index_col=0)
-        self.energy['dft'] = self.energy['dft']*13.605693122994
-        self.min_energy = min(self.energy['dft'])
+        if norm:        
+            self.energy['dft'] = self.energy['dft']*13.605693122994
+            self.min_energy = min(self.energy['dft'])
 
 
         super().__init__(opt = opt, root = root, filename = filename, max_d=max_d, step=step)
@@ -57,9 +60,19 @@ class carbide(interstitial_alloy):
             node_feats = self._get_node_feats(structure)
             adj, edge_feats = self._get_edge(structure)
             file_name = raw_path.split('/')[-1]
-            energy, e_norm = self._get_energy(file_name)
+
+            if self._norm:
+                energy, e_norm = self._get_energy(file_name)
+            else:
+                energy = self.energy.loc[file_name, 'dft']
+                e_norm = self.energy.loc[file_name, 'dft']
+
             coords = self._get_cords(structure)
-            fold = self._get_fold(file_name)
+
+            if self._include_fold:
+                fold = self._get_fold(file_name)
+            else:
+                fold = None
 
             data = Data(x=node_feats,
                         edge_index=adj,
