@@ -2,10 +2,12 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
+from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import os
-from seaborn import violinplot, stripplot, jointplot, barplot
+from seaborn import violinplot, stripplot
+from math import sqrt
 from icecream import ic
 
 def create_st_parity_plot(real, predicted, figure_name, save_path=None):
@@ -129,8 +131,8 @@ def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, s
     mean_gnn, mean_tml = means
     std_gnn, std_tml = stds
 
-    folds = list(range(1, 11))
-    index = np.arange(10)
+    folds = list(range(1, 6))
+    index = np.arange(5)
 
     plt.bar(index, mean_gnn, bar_width, label='GNN Approach', yerr=std_gnn, capsize=5)
     plt.bar(index+bar_width, mean_tml, bar_width, label=f'{tml_algorithm.upper()} Approach', yerr=std_tml, capsize=5)
@@ -151,3 +153,73 @@ def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, s
     print('Plot {}_GNN_vs_TML has been saved in the directory {}'.format(metric,save_path))
 
     plt.clf()
+
+
+
+def create_violin_plot(data, save_path:str):
+
+    violinplot(data = data, x='Test_Fold', y='Error', hue='Method', split=True, gap=.1, inner="quart", fill=False)
+
+    plt.xlabel('Fold Used as Test Set', fontsize=18)
+    plt.ylabel('$Energy_{DFT}-Energy_{ML\_predicted}$', fontsize=18)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    ax= plt.gca()
+    ax.get_legend().remove()
+
+    plt.savefig(os.path.join(save_path, f'Error_distribution_GNN_vs_AP_violin_plot'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def create_strip_plot(data, save_path:str):
+
+    stripplot(data = data, x='Test_Fold', y='Error', hue='Method', size=3,  dodge=True, jitter=True, marker='D', alpha=.3)
+
+    plt.xlabel('Fold Used as Test Set', fontsize=18)
+    plt.ylabel('$Energy_{DFT}-Energy_{ML\_predicted}$', fontsize=18)
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+    ax= plt.gca()
+    ax.get_legend().remove()
+
+    plt.savefig(os.path.join(save_path, f'Error_distribution_GNN_vs_AP_strip_plot'), dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def plot_parity_224(df_GNN, df_ap, save_path:str):
+    
+    lr_GNN = LinearRegression()
+    lr_GNN.fit(df_GNN[['DFT_energy(eV)']], df_GNN['Mean_Delta_E'])
+    predicted_Delta_E_GNN = lr_GNN.predict(df_GNN[['DFT_energy(eV)']])
+
+    lr_ap = LinearRegression()
+    lr_ap.fit(df_ap[['DFT_energy(eV)']], df_ap['Mean_Delta_E'])
+    predicted_Delta_E_ap = lr_ap.predict(df_ap[['DFT_energy(eV)']])
+
+    plt.figure(dpi=300)
+
+    plt.scatter(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'], label='GNN', c='#1f77b4')
+    plt.errorbar(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'], yerr=df_GNN['Std_Delta_E'], fmt='o', markersize=5,  capsize=3, c='#1f77b4')
+    plt.plot(df_GNN['DFT_energy(eV)'], predicted_Delta_E_GNN,  c='#1f77b4')
+
+    plt.scatter(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'], label = 'Atomistic Potential', c ='#ff7f0e')
+    plt.errorbar(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'], yerr=df_ap['Std_Delta_E'], fmt='o', markersize=5,  capsize=3, c= '#ff7f0e')
+    plt.plot(df_ap['DFT_energy(eV)'], predicted_Delta_E_ap, c='#ff7f0e')
+
+    plt.plot([df_GNN['DFT_energy(eV)'].min(), df_GNN['DFT_energy(eV)'].max()], [df_GNN['DFT_energy(eV)'].min(), df_GNN['DFT_energy(eV)'].max()], 'k--', label='DFT')
+
+    plt.text(6.5,2, 'MAE GNN: {:.3f}'.format(mean_absolute_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'])))
+    plt.text(6.5,1.5, 'RMSE GNN: {:.3f}'.format(sqrt(mean_squared_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E']))))
+
+    plt.text(6.5,0.5, 'MAE AP: {:.3f}'.format(mean_absolute_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'])))
+    plt.text(6.5,0, 'RMSE AP: {:.3f}'.format(sqrt(mean_squared_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E']))))
+
+    plt.xlabel('DFT Calculated $\Delta$E / eV', fontsize=18)
+    plt.ylabel('ML predicted $\Delta$E / eV', fontsize=18)
+
+    plt.xticks(fontsize=16)
+    plt.yticks(fontsize=16)
+
+    plt.legend()
+    plt.savefig(os.path.join(save_path, f'parity_plot_224_cells'), dpi=300, bbox_inches='tight')
+    plt.close()
