@@ -1,0 +1,37 @@
+12-Mar-2024, 13:23:24
+---------------------------------------------------------
+Traditional ML algorithm Performance
+Dataset Size = 700
+c term coefficient = 0.02362167113160323
+bv term coefficient = 4.530915056161035
+ang term coefficient = 0.09971516013690605
+***************
+Training set
+Set size = 420
+R2 = 0.923
+MAE = 0.139
+RMSE = 0.177
+Mean Bias Error = -0.000
+Mean Absolute Percentage Error = 0.048
+Error Standard Deviation = 0.177
+***************
+Validation set
+Set size = 140
+R2 = 0.936
+MAE = 0.127
+RMSE = 0.156
+Mean Bias Error = 0.023
+Mean Absolute Percentage Error = 0.045
+Error Standard Deviation = 0.155
+***************
+Test set
+Set size = 140
+R2 = 0.944
+MAE = 0.118
+RMSE = 0.154
+Mean Bias Error = -0.000
+Mean Absolute Percentage Error = 0.042
+Error Standard Deviation = 0.154
+---------------------------------------------------------
+OUTLIERS (TEST SET)
+01) 1049.vasp    Error: 0.47 %    (index=15)

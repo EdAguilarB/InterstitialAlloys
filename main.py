@@ -7,7 +7,7 @@ from copy import deepcopy
 from call_methods import make_network, create_loaders
 from data.alloy import carbide
 from utils.model_utils import train_network, eval_network, network_report, network_outer_report
-from utils.experiment_utils import train_tml_model_nested_cv, predict_final_test, plot_results
+from utils.experiment_utils import train_tml_model_nested_cv, predict_final_test, plot_results, train_networt_less_points
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -149,13 +149,28 @@ def train_networt_nested_cv():
     
     print('All runs completed')
 
+    train_tml_model_nested_cv(opt, current_dir)
+    predict_final_test(current_dir, opt)
+
+    for i in range(100, 1001, opt.sampling_size):
+        train_networt_less_points(opt, current_dir, i)
+        train_tml_model_nested_cv(opt, current_dir, i)
+    
+    plot_results(f"{current_dir}/{opt.log_dir_results}", opt)
+
 opt = BaseOptions().parse()
 
 if __name__ == "__main__":
     #train_networt_nested_cv()
     #train_tml_model_nested_cv(opt, os.getcwd())
     #predict_final_test(os.getcwd(), opt)
-    plot_results(os.path.join(os.getcwd(), opt.log_dir_results), opt)
+     for i in range(100, 1001, 100):
+        #train_networt_less_points(opt, os.getcwd(), i)
+        train_tml_model_nested_cv(opt, os.getcwd(), i)
+
+    #plot_results(os.path.join(os.getcwd(), opt.log_dir_results), opt)
+     
+
     
 
 

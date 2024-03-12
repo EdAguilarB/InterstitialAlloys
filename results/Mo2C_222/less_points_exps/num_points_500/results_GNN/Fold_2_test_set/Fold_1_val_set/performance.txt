@@ -1,0 +1,35 @@
+12-Mar-2024, 12:00:29
+---------------------------------------------------------
+GNN TRAINING AND PERFORMANCE
+Best epoch: 44
+Dataset Size = 500
+***************
+Training set
+Set size = 300
+R2 = 0.947
+MAE = 0.115
+RMSE = 0.149
+Mean Bias Error = 0.013
+Mean Absolute Percentage Error = 0.040
+Error Standard Deviation = 0.148
+***************
+Validation set
+Set size = 100
+R2 = 0.941
+MAE = 0.124
+RMSE = 0.156
+Mean Bias Error = -0.014
+Mean Absolute Percentage Error = 0.040
+Error Standard Deviation = 0.155
+***************
+Test set
+Set size = 100
+R2 = 0.930
+MAE = 0.123
+RMSE = 0.163
+Mean Bias Error = 0.007
+Mean Absolute Percentage Error = 0.041
+Error Standard Deviation = 0.163
+---------------------------------------------------------
+OUTLIERS (TEST SET)
+01) 277.vasp    Error: -0.60 eV    (index=60)

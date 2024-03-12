@@ -12,7 +12,7 @@ def make_network(network_name: str, opt: argparse.Namespace, n_node_features: in
         raise ValueError(f"Network {network_name} not implemented")
     
 
-def create_loaders(dataset, opt: argparse.Namespace):
+def create_loaders(dataset, opt: argparse.Namespace, num_points=None):
 
     """
     Creates training, validation and testing loaders for cross validation and
@@ -32,10 +32,16 @@ def create_loaders(dataset, opt: argparse.Namespace):
     batch_size = opt.batch_size
     folds = opt.folds
 
-
     folds = [[] for _ in range(folds)]
     for data in dataset:
         folds[data.fold-1].append(data)
+
+    if num_points:
+
+        k, m = divmod(num_points, len(folds))
+
+        for f, fold in enumerate(folds):
+            folds[f] = fold[:k+1 if f < m else k]
 
     for outer in range(len(folds)):
         proxy = copy(folds)
@@ -46,3 +52,5 @@ def create_loaders(dataset, opt: argparse.Namespace):
             flatten_training = [item for sublist in proxy2 for item in sublist]  # flatten list of lists
             train_loader = DataLoader(flatten_training, batch_size=batch_size, shuffle=True)
             yield deepcopy((train_loader, val_loader, test_loader))
+
+

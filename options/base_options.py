@@ -178,6 +178,13 @@ class BaseOptions:
             )
         
         self.parser.add_argument(
+            '--sampling_size',
+            type=int,
+            default=100,
+            help='Number of points to increase each iteration for number of points experiments',
+            )
+        
+        self.parser.add_argument(
             '--global_seed',
             type=int,
             default=123456789,

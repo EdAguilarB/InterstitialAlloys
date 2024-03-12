@@ -198,7 +198,7 @@ def network_report(log_dir,
     file1.write("---------------------------------------------------------\n")
 
     create_st_parity_plot(real = y_true, predicted = y_pred, figure_name = 'outer_{}_inner_{}'.format(outer, inner), save_path = "{}".format(log_dir))
-    create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
+    #create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
 
     file1.write("OUTLIERS (TEST SET)\n")
     error_test = [(y_pred[i] - y_true[i]) for i in range(len(y_pred))]
@@ -289,7 +289,15 @@ def network_outer_report(log_dir: str,
 ######################################
 ######################################
 
-def split_data(df:pd.DataFrame):
+def split_data(df:pd.DataFrame, num_points:int=None):
+
+    if num_points:
+        short_df = pd.DataFrame(columns=df.columns)
+        k,m = divmod(num_points, len(np.unique(df['fold'])))
+        for fold in np.unique(df['fold']):
+            short_df = pd.concat([short_df, df.loc[df['fold'] == fold][:k+1 if fold < m+1 else k]])
+        del df
+        df = short_df
         
     for outer in np.unique(df['fold']):
         proxy = copy(df)
@@ -395,7 +403,7 @@ def tml_report(log_dir,
     file1.write("---------------------------------------------------------\n")
 
     create_st_parity_plot(real = y_true, predicted = y_pred, figure_name = 'outer_{}_inner_{}'.format(outer, inner), save_path = "{}".format(log_dir))
-    create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
+    #create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
 
     file1.write("OUTLIERS (TEST SET)\n")
     error_test = [(y_pred[i] - y_true[i]) for i in range(len(y_pred))]
