@@ -15,7 +15,7 @@ from options.base_options import BaseOptions
 from data.alloy import carbide
 from utils.model_utils import network_outer_report, split_data, tml_report, network_report, extract_metrics,\
     train_network, eval_network
-from utils.plot_utils import create_bar_plot, create_violin_plot, create_strip_plot, plot_parity_224
+from utils.plot_utils import create_bar_plot, create_violin_plot, create_strip_plot, plot_parity_224, plot_num_points_effect
 from call_methods import make_network, create_loaders
 from icecream import ic
 
@@ -465,3 +465,67 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
         df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
 
         plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
+
+
+def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
+
+    r2_gnn_all, mae_gnn_all, rmse_gnn_all = [], [], []
+    r2_std_gnn_all, mae_std_gnn_all, rmse_std_gnn_all = [], [], []
+
+    r2_ap_all, mae_ap_all, rmse_ap_all = [], [], []
+    r2_std_ap_all, mae_std_ap_all, rmse_std_ap_all = [], [], []
+
+    for i in range(100,1001, opt.sampling_size):
+
+        r2_gnn, mae_gnn, rmse_gnn = [], [], []
+        r2_ap, mae_ap, rmse_ap = [], [], []
+
+        points_dir = f'{exp_dir}/num_points_{i}'
+
+        gnn_dir_p = os.path.join(points_dir, 'results_GNN')
+        ap_dir_p = os.path.join(points_dir, 'results_atomistic_potential')
+
+        for outer in range(1, opt.folds+1):
+            for inner in range(1, opt.folds):
+
+                real_inner = inner +1 if outer <= inner else inner
+
+                gnn_dir = os.path.join(gnn_dir_p, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+                ap_dir = os.path.join(ap_dir_p, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+
+                metrics_gnn = extract_metrics(file=gnn_dir+f'/performance.txt', outer=False)
+                metrics_ap = extract_metrics(file=ap_dir+f'/performance.txt', outer=False)
+                
+                r2_gnn.append(metrics_gnn['R2'] if metrics_gnn['R2'] != None else 0)
+                mae_gnn.append(metrics_gnn['MAE'])
+                rmse_gnn.append(metrics_gnn['RMSE'])
+
+                r2_ap.append(metrics_ap['R2'])
+                mae_ap.append(metrics_ap['MAE'])
+                rmse_ap.append(metrics_ap['RMSE'])
+        
+        r2_gnn_all.append(np.mean(r2_gnn))
+        r2_std_gnn_all.append(np.std(r2_gnn))
+        mae_gnn_all.append(np.mean(mae_gnn))
+        mae_std_gnn_all.append(np.std(mae_gnn))
+        rmse_gnn_all.append(np.mean(rmse_gnn))
+        rmse_std_gnn_all.append(np.std(rmse_gnn))
+
+        r2_ap_all.append(np.mean(r2_ap))
+        r2_std_ap_all.append(np.std(r2_ap))
+        mae_ap_all.append(np.mean(mae_ap))
+        mae_std_ap_all.append(np.std(mae_ap))
+        rmse_ap_all.append(np.mean(rmse_ap))
+        rmse_std_ap_all.append(np.std(rmse_ap))
+
+    exp_dir = f'{exp_dir}/results_GNN_vs_AP'
+
+    os.makedirs(exp_dir, exist_ok=True)
+
+    plot_num_points_effect(means=(r2_gnn_all, r2_ap_all), stds=(r2_std_gnn_all, r2_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='R2', save_path=exp_dir)
+    plot_num_points_effect(means=(mae_gnn_all, mae_ap_all), stds=(mae_std_gnn_all, mae_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='MAE', save_path=exp_dir)
+    plot_num_points_effect(means=(rmse_gnn_all, rmse_ap_all), stds=(rmse_std_gnn_all, rmse_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='RMSE', save_path=exp_dir)
+
+
+
+

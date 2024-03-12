@@ -223,3 +223,34 @@ def plot_parity_224(df_GNN, df_ap, save_path:str):
     plt.legend()
     plt.savefig(os.path.join(save_path, f'parity_plot_224_cells'), dpi=300, bbox_inches='tight')
     plt.close()
+
+
+def plot_num_points_effect(means:tuple, stds:tuple, num_points:list, metric:str, save_path:str):
+
+    means_gnn, means_ap = means
+    stds_gnn, stds_ap = stds
+        
+    fig, ax = plt.subplots()
+
+    # Plot mean_MAE vs num_data_points with error bars for std_MAE
+    ax.errorbar(num_points, means_gnn, yerr=stds_gnn, label=f'GNN',  capsize=5, color = '#1f77b4')
+
+    # Plot mean_RMSE vs num_data_points with error bars for std_RMSE
+    ax.errorbar(num_points, means_ap, yerr=stds_ap, label=f'Atomistic Potential',  capsize=5, color = '#ff7f0e')
+
+    ax.set_xlabel('Number of Data Points', fontsize = 16)
+
+    label = 'Mean $R^2$ Value' if metric == 'R2' else f'Mean {metric} Value / eV'
+    ax.set_ylabel(label, fontsize = 16)
+
+    ax.plot(num_points, means_gnn, 'o-', color='#1f77b4',  markersize=8, linewidth=2)
+    ax.plot(num_points, means_ap, 'o-', color='#ff7f0e',  markersize=8, linewidth=2)
+
+    #ax.legend()
+    plt.grid(False)
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
+
+    plt.savefig(os.path.join(save_path, f'{metric}_vs_num_points'), dpi=300, bbox_inches='tight')
+
+    print('Plot {}_vs_num_points has been saved in the directory {}'.format(metric,save_path))
