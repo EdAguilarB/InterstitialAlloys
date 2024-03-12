@@ -518,6 +518,10 @@ def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
         rmse_ap_all.append(np.mean(rmse_ap))
         rmse_std_ap_all.append(np.std(rmse_ap))
 
+    exp_dir = f'{exp_dir}/results_GNN_vs_AP'
+
+    os.makedirs(exp_dir, exist_ok=True)
+
     plot_num_points_effect(means=(r2_gnn_all, r2_ap_all), stds=(r2_std_gnn_all, r2_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='R2', save_path=exp_dir)
     plot_num_points_effect(means=(mae_gnn_all, mae_ap_all), stds=(mae_std_gnn_all, mae_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='MAE', save_path=exp_dir)
     plot_num_points_effect(means=(rmse_gnn_all, rmse_ap_all), stds=(rmse_std_gnn_all, rmse_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='RMSE', save_path=exp_dir)
