@@ -443,28 +443,46 @@ def tml_report(log_dir,
 
 
 
-def extract_metrics(file):
+def extract_metrics(file, outer = True):
 
-    metrics = {'Accuracy': None, 'Precision': None, 'Recall': None, 'R2': None, 'MAE': None, 'RMSE': None}
+    metrics = {'R2': None, 'MAE': None, 'RMSE': None}
 
     with open(file, 'r') as file:
             content = file.read()
 
-    # Define regular expressions to match metric lines
-    r2_pattern = re.compile(r"R2: (\d+\.\d+) ± (\d+\.\d+)")
-    mae_pattern = re.compile(r"MAE: (\d+\.\d+) ± (\d+\.\d+)")
-    rmse_pattern = re.compile(r"RMSE: (\d+\.\d+) ± (\d+\.\d+)")
+    
+    if outer:
+        # Define regular expressions to match metric lines
+        r2_pattern = re.compile(r"R2: (\d+\.\d+) ± (\d+\.\d+)")
+        mae_pattern = re.compile(r"MAE: (\d+\.\d+) ± (\d+\.\d+)")
+        rmse_pattern = re.compile(r"RMSE: (\d+\.\d+) ± (\d+\.\d+)")
+
+    else:
+        # Define regular expressions to match metric lines
+        r2_pattern = re.compile(r"R2 = (\d+\.\d+)")
+        mae_pattern = re.compile(r"MAE = (\d+\.\d+)")
+        rmse_pattern = re.compile(r"RMSE = (\d+\.\d+)")
 
     r2_match = r2_pattern.search(content)
     mae_match = mae_pattern.search(content)
     rmse_match = rmse_pattern.search(content)
 
-    # Update the metrics dictionary with extracted values
-    if r2_match:
-        metrics['R2'] = {'mean': float(r2_match.group(1)), 'std': float(r2_match.group(2))}
-    if mae_match:
-        metrics['MAE'] = {'mean': float(mae_match.group(1)), 'std': float(mae_match.group(2))}
-    if rmse_match:
-        metrics['RMSE'] = {'mean': float(rmse_match.group(1)), 'std': float(rmse_match.group(2))}
+    if outer:
+        # Update the metrics dictionary with extracted values
+        if r2_match:
+            metrics['R2'] = {'mean': float(r2_match.group(1)), 'std': float(r2_match.group(2))}
+        if mae_match:
+            metrics['MAE'] = {'mean': float(mae_match.group(1)), 'std': float(mae_match.group(2))}
+        if rmse_match:
+            metrics['RMSE'] = {'mean': float(rmse_match.group(1)), 'std': float(rmse_match.group(2))}
+    
+    else:
+        # Update the metrics dictionary with extracted values
+        if r2_match:
+            metrics['R2'] = float(r2_match.group(1))
+        if mae_match:
+            metrics['MAE'] = float(mae_match.group(1))
+        if rmse_match:
+            metrics['RMSE'] = float(rmse_match.group(1))
 
     return metrics
