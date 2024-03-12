@@ -6,7 +6,7 @@ from sklearn.linear_model import LinearRegression
 import numpy as np
 import pandas as pd
 import os
-from seaborn import violinplot, stripplot
+from seaborn import violinplot, stripplot, kdeplot
 from math import sqrt
 from icecream import ic
 
@@ -254,3 +254,34 @@ def plot_num_points_effect(means:tuple, stds:tuple, num_points:list, metric:str,
     plt.savefig(os.path.join(save_path, f'{metric}_vs_num_points'), dpi=300, bbox_inches='tight')
 
     print('Plot {}_vs_num_points has been saved in the directory {}'.format(metric,save_path))
+
+
+def plot_diff_distribution(data, save_path, file_name):
+
+    plt.figure(figsize=(8, 8))
+
+    mean_value = np.mean(data)
+    median_value = np.median(data)
+
+    kdeplot(data, fill=True, color='skyblue')
+
+    # Add a vertical line at the median and mean
+    plt.axvline(mean_value, color='red', linestyle='dashed', linewidth=2)
+    plt.axvline(median_value, color='green', linestyle='dashed', linewidth=2)
+
+    # Create custom legend labels
+    mean_legend_label = f'Mean deviation: {mean_value:.3f} eV'
+    median_legend_label = f'Median deviation: {median_value:.3f} eV'
+    total_points_label = f'Attribution Scores for {len(data)} Structures'
+
+    # Labeling and title
+    plt.xlabel('$\hat{Y}_{i}-\hat{Y}_{masked}$')
+    plt.ylabel('Density')
+
+    plt.legend([total_points_label, mean_legend_label, median_legend_label])
+
+    save_dir = os.path.join(save_path, file_name)
+
+    plt.savefig(save_dir, dpi=300, bbox_inches='tight')
+
+    return 'Plot saved in {}'.format(save_dir)

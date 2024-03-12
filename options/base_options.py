@@ -185,6 +185,41 @@ class BaseOptions:
             )
         
         self.parser.add_argument(
+            '--explain_outer',
+            type=int,
+            default=None,
+            help='Outer to which the model to be explained belongs'
+        )
+
+        self.parser.add_argument(
+            '--explain_inner',
+            type=int,
+            default=None,
+            help='Outer to which the model to be explained belongs'
+        )
+
+        self.parser.add_argument(
+            '--explain_geom',
+            type=list,
+            default=['lin', 'L', 'pyr', 'fT', 'cross', 'tetra', 'penta', 'hexa'],
+            help='Geometries to be explained'
+        )
+
+        self.parser.add_argument(
+            '--normalize_attr_score',
+            type=bool,
+            default='True',
+            help='Whether or not to normalize the attribute score by the frequency of the geometry in the graph'
+        )
+
+        self.parser.add_argument(
+            '--exclude_zero_structure',
+            type=bool,
+            default=False,
+            help='Whether or not to remove the scores in the attribute score that are zero'
+        )
+        
+        self.parser.add_argument(
             '--global_seed',
             type=int,
             default=123456789,

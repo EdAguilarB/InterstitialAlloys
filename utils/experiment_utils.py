@@ -6,6 +6,7 @@ import pandas as pd
 import sys
 import joblib
 import torch
+import random
 from copy import deepcopy
 from sklearn.linear_model import LinearRegression
 from torch_geometric.loader import DataLoader
@@ -15,7 +16,9 @@ from options.base_options import BaseOptions
 from data.alloy import carbide
 from utils.model_utils import network_outer_report, split_data, tml_report, network_report, extract_metrics,\
     train_network, eval_network
-from utils.plot_utils import create_bar_plot, create_violin_plot, create_strip_plot, plot_parity_224, plot_num_points_effect
+from utils.plot_utils import create_bar_plot, create_violin_plot, create_strip_plot, plot_parity_224, \
+    plot_num_points_effect, plot_diff_distribution
+from utils.xai_utils import permute_graphs
 from call_methods import make_network, create_loaders
 from icecream import ic
 
@@ -320,8 +323,6 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
 
     if opt.exp_name == 'Mo2C_222':
         results_224 = pd.DataFrame(columns = ['index', 'Test_Fold', 'Val_Fold', 'Method', 'DFT_energy(eV)', 'ML_Predicted_Energy(eV)'])
-        r2_gnn_224, mae_gnn_224, rmse_gnn_224 = [], [], []
-        r2_mlr_224, mae_mlr_224, rmse_mlr_224 = [], [], []
         experiments_gnn_224 = os.path.join(exp_dir, 'Mo2C_224', 'results_GNN')
         experiments_tml_224 = os.path.join(exp_dir, 'Mo2C_224', f'results_atomistic_potential')
 
@@ -525,6 +526,122 @@ def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
     plot_num_points_effect(means=(r2_gnn_all, r2_ap_all), stds=(r2_std_gnn_all, r2_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='R2', save_path=exp_dir)
     plot_num_points_effect(means=(mae_gnn_all, mae_ap_all), stds=(mae_std_gnn_all, mae_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='MAE', save_path=exp_dir)
     plot_num_points_effect(means=(rmse_gnn_all, rmse_ap_all), stds=(rmse_std_gnn_all, rmse_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='RMSE', save_path=exp_dir)
+
+
+def explain_model(exp_dir, opt: argparse.Namespace) -> None:
+
+    experiments = os.path.join(exp_dir, opt.exp_name, 'results_GNN')
+
+    if not opt.explain_outer or not opt.explain_inner:
+        random.seed(opt.global_seed)
+
+    if not opt.explain_outer:
+        outer = random.randint(1, opt.folds)
+    else:
+        outer = opt.explain_outer
+    
+    if not opt.explain_inner:
+        inner = random.randint(1, opt.folds-1)
+        inner = inner +1 if outer <= inner else inner
+    else:
+        inner = opt.explain_inner
+
+    print(f'Explaining model trained using as test set {outer} and validation set {inner}')
+
+    model_dir = os.path.join(experiments, f'Fold_{outer}_test_set', f'Fold_{inner}_val_set')
+
+    model = torch.load(model_dir+'/model.pth')
+    model_params = torch.load(model_dir+'/model_params.pth')
+    model.load_state_dict(model_params)
+
+
+    train_loader = torch.load(model_dir+'/train_loader.pth')
+    val_loader = torch.load(model_dir+'/val_loader.pth')
+    loader = torch.load(model_dir+'/test_loader.pth')
+
+    results_summary = pd.DataFrame(columns=['Geometry', 'Mean Attribution Score', 'Std. Attribution Score'])
+
+
+    for geometry in opt.explain_geom:
+
+        print('Analysing {} geometry for {} set'.format(geometry, 'test'))
+
+        m_prediction, nm_prediction, y, indexes = [], [], [], []
+
+        dataset = loader.dataset
+        loader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+        for batch in loader:
+
+            emb = model.get_intermediate_embedding(batch)
+            batch.embeddings = emb
+            permuted_batch, num_frag_removed = permute_graphs(batch, shape=geometry)
+
+            try:
+                permuted_batch.x = permuted_batch.embeddings
+                masked_prediction = model.get_final_prediction(permuted_batch)
+                prediction = model.forward(batch)
+
+                if opt.normalize_attr_score == True:
+                    print('Original masked prediction {:.4f} has to be normalised since {} repeated fragments have been found.'\
+                          .format(masked_prediction.item(), num_frag_removed))
+                    masked_prediction = masked_prediction/num_frag_removed if num_frag_removed != 0 else masked_prediction
+                    print('New normalised masked prediction {:.4f}'.format(masked_prediction.item()))
+                else:
+                    pass
+
+
+                m_prediction.append(masked_prediction.cpu().detach().numpy())
+                nm_prediction.append(prediction.cpu().detach().numpy())
+                y.append(batch.y.cpu().detach().numpy())
+                indexes.append(batch.file_name)
+                print('Structure {} has been analysed'.format(batch.file_name[0]))
+
+            
+            except:
+                print('Structure {} could not be analysed since all its nodes were removed'.format(permuted_batch.file_name[0]))
+
+        m_prediction = np.concatenate(m_prediction).ravel()
+        nm_prediction = np.concatenate(nm_prediction).ravel()
+        y = np.concatenate(y).ravel()
+        indexes = np.concatenate(indexes).ravel()
+
+        diff_m_nm = nm_prediction - m_prediction 
+
+        if opt.exclude_zero_structure == True:
+            diff_m_nm = diff_m_nm[diff_m_nm != 0]
+            print('Structures with zero difference in prediction were excluded')
+
+        log_dir = os.path.join(model_dir, 'explanations')
+        os.makedirs(log_dir, exist_ok=True)
+
+        plot_diff_distribution(diff_m_nm, log_dir, 'Y-Y_m_disttribution_{}'.format(geometry))
+
+        geom_info = {}
+        geom_info['Geometry'] = [geometry]
+        geom_info['Mean Attribution Score'] = [np.mean(diff_m_nm)]
+        geom_info['Std. Attribution Score'] = [np.std(diff_m_nm)]
+
+        geom_info = pd.DataFrame(geom_info)
+
+        results_summary = pd.concat([results_summary, geom_info], axis = 0, ignore_index=True)
+
+
+        print('Distribution of differences plot was saved in {}'.format(log_dir))
+
+        del m_prediction, nm_prediction, y, indexes, diff_m_nm
+    
+    results_summary['Normalised Attribution Score'] = (results_summary['Mean Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
+                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
+    
+    results_summary['Normalised Std. Attr. Score'] = (results_summary['Std. Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
+                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
+    
+    results_summary = results_summary.sort_values(by='Normalised Attribution Score', ascending=False)
+    results_summary = results_summary.reset_index(drop=True)
+    results_summary.index.name = 'Importance Rank'
+    results_summary.index += 1
+    results_summary.to_csv(os.path.join(log_dir, 'summary_results.csv'))
 
 
 
