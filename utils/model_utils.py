@@ -3,18 +3,39 @@ import os
 import csv
 import re
 import pickle
+import pandas as pd
 import numpy as np
 from datetime import date, datetime
 from copy import copy, deepcopy
-from sklearn.linear_model import LinearRegression
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, \
     accuracy_score, precision_score, recall_score, f1_score
 from math import sqrt
-from utils.plot_utils import *
-from icecream import ic
-from sklearn.preprocessing import RobustScaler
+from utils.plot_utils import create_training_plot, create_st_parity_plot
+
+
+######################################
+######################################
+######################################
+#########  General functions #########
+######################################
+######################################
+######################################
+
+def check_dir(dir:str):
+    answer = None
+    should_run = True
+    if os.path.exists(dir):
+        while True:
+            answer = input(f'{dir} already exists. Do you want to overwrite the results contained there? Y/n\n')
+            if answer == 'Y':
+                should_run = True
+                break
+            elif answer == 'n':
+                should_run = False  # Set flag to break outer loop
+                break
+            else:
+                print('Please enter Y or n')
+    return should_run  # Return flag value
 
 
 def calculate_metrics(y_true:list, y_predicted: list,  task = 'r'):
@@ -40,6 +61,50 @@ def calculate_metrics(y_true:list, y_predicted: list,  task = 'r'):
         metrics_names = ['Accuracy', 'Precision', 'Recall', 'F1']
 
     return np.array(metrics), metrics_names
+
+def extract_metrics(file, outer = True):
+
+    metrics = {'R2': None, 'MAE': None, 'RMSE': None}
+
+    with open(file, 'r') as file:
+            content = file.read()
+
+    
+    if outer:
+        # Define regular expressions to match metric lines
+        r2_pattern = re.compile(r"R2: (\d+\.\d+) ± (\d+\.\d+)")
+        mae_pattern = re.compile(r"MAE: (\d+\.\d+) ± (\d+\.\d+)")
+        rmse_pattern = re.compile(r"RMSE: (\d+\.\d+) ± (\d+\.\d+)")
+
+    else:
+        # Define regular expressions to match metric lines
+        r2_pattern = re.compile(r"R2 = (\d+\.\d+)")
+        mae_pattern = re.compile(r"MAE = (\d+\.\d+)")
+        rmse_pattern = re.compile(r"RMSE = (\d+\.\d+)")
+
+    r2_match = r2_pattern.search(content)
+    mae_match = mae_pattern.search(content)
+    rmse_match = rmse_pattern.search(content)
+
+    if outer:
+        # Update the metrics dictionary with extracted values
+        if r2_match:
+            metrics['R2'] = {'mean': float(r2_match.group(1)), 'std': float(r2_match.group(2))}
+        if mae_match:
+            metrics['MAE'] = {'mean': float(mae_match.group(1)), 'std': float(mae_match.group(2))}
+        if rmse_match:
+            metrics['RMSE'] = {'mean': float(rmse_match.group(1)), 'std': float(rmse_match.group(2))}
+    
+    else:
+        # Update the metrics dictionary with extracted values
+        if r2_match:
+            metrics['R2'] = float(r2_match.group(1))
+        if mae_match:
+            metrics['MAE'] = float(mae_match.group(1))
+        if rmse_match:
+            metrics['RMSE'] = float(rmse_match.group(1))
+
+    return metrics
 
 ######################################
 ######################################
@@ -432,57 +497,9 @@ def tml_report(log_dir,
 
 
 
-######################################
-######################################
-######################################
-#########  General functions #########
-######################################
-######################################
-######################################
 
 
 
 
-def extract_metrics(file, outer = True):
 
-    metrics = {'R2': None, 'MAE': None, 'RMSE': None}
 
-    with open(file, 'r') as file:
-            content = file.read()
-
-    
-    if outer:
-        # Define regular expressions to match metric lines
-        r2_pattern = re.compile(r"R2: (\d+\.\d+) ± (\d+\.\d+)")
-        mae_pattern = re.compile(r"MAE: (\d+\.\d+) ± (\d+\.\d+)")
-        rmse_pattern = re.compile(r"RMSE: (\d+\.\d+) ± (\d+\.\d+)")
-
-    else:
-        # Define regular expressions to match metric lines
-        r2_pattern = re.compile(r"R2 = (\d+\.\d+)")
-        mae_pattern = re.compile(r"MAE = (\d+\.\d+)")
-        rmse_pattern = re.compile(r"RMSE = (\d+\.\d+)")
-
-    r2_match = r2_pattern.search(content)
-    mae_match = mae_pattern.search(content)
-    rmse_match = rmse_pattern.search(content)
-
-    if outer:
-        # Update the metrics dictionary with extracted values
-        if r2_match:
-            metrics['R2'] = {'mean': float(r2_match.group(1)), 'std': float(r2_match.group(2))}
-        if mae_match:
-            metrics['MAE'] = {'mean': float(mae_match.group(1)), 'std': float(mae_match.group(2))}
-        if rmse_match:
-            metrics['RMSE'] = {'mean': float(rmse_match.group(1)), 'std': float(rmse_match.group(2))}
-    
-    else:
-        # Update the metrics dictionary with extracted values
-        if r2_match:
-            metrics['R2'] = float(r2_match.group(1))
-        if mae_match:
-            metrics['MAE'] = float(mae_match.group(1))
-        if rmse_match:
-            metrics['RMSE'] = float(rmse_match.group(1))
-
-    return metrics

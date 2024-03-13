@@ -199,6 +199,13 @@ class BaseOptions:
         )
 
         self.parser.add_argument(
+            '--explain_set',
+            type=str,
+            default="test",
+            help='Dataset used for the explanation. Allowed values: "train". "val" or "test"'
+        )
+
+        self.parser.add_argument(
             '--explain_geom',
             type=list,
             default=['lin', 'L', 'pyr', 'fT', 'cross', 'tetra', 'penta', 'hexa'],
@@ -217,6 +224,48 @@ class BaseOptions:
             type=bool,
             default=False,
             help='Whether or not to remove the scores in the attribute score that are zero'
+        )
+
+        self.parser.add_argument(
+            '--run_gnn_training',
+            type=bool,
+            default=True,
+            help='Whether or not to run the GNN training'
+        )
+
+        self.parser.add_argument(
+            '--run_tml_training',
+            type=bool,
+            default=True,
+            help='Whether or not to run the atomistic potential training'
+        )
+
+        self.parser.add_argument(
+            '--plot_results',
+            type=bool,
+            default=True,
+            help='Whether or not to plot results of nested cross validation for GNN and Atomistic potential'
+        )
+
+        self.parser.add_argument(
+            '--run_n_points_exp',
+            type=bool,
+            default=True,
+            help='Whether or not to run performance experiments with different number of points'
+        )
+
+        self.parser.add_argument(
+            '--plot_n_points_exp',
+            type=bool,
+            default=True,
+            help='Whether or not to run plot number of points experiments'
+        )
+
+        self.parser.add_argument(
+            '--run_explanation',
+            type=bool,
+            default=True,
+            help='Whether or not to run the explanation'
         )
         
         self.parser.add_argument(

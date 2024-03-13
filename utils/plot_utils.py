@@ -8,7 +8,16 @@ import pandas as pd
 import os
 from seaborn import violinplot, stripplot, kdeplot
 from math import sqrt
-from icecream import ic
+
+
+
+#########################################################
+#########################################################
+#########################################################
+#############Functions to create plots###################
+#########################################################
+#########################################################
+#########################################################
 
 def create_st_parity_plot(real, predicted, figure_name, save_path=None):
     """
