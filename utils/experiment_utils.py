@@ -14,16 +14,24 @@ from sklearn.metrics import mean_squared_error
 from math import sqrt
 from options.base_options import BaseOptions
 from data.alloy import carbide
-from utils.model_utils import network_outer_report, split_data, tml_report, network_report, extract_metrics,\
-    train_network, eval_network
-from utils.plot_utils import create_bar_plot, create_violin_plot, create_strip_plot, plot_parity_224, \
-    plot_num_points_effect, plot_diff_distribution
+from utils.model_utils import network_outer_report, split_data, tml_report, network_report,\
+    train_network, eval_network, check_dir, extract_metrics
+from utils.plot_utils import  plot_diff_distribution, create_bar_plot, create_violin_plot, \
+    create_strip_plot, plot_parity_224, plot_num_points_effect
 from utils.xai_utils import permute_graphs
 from call_methods import make_network, create_loaders
 from icecream import ic
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+
+
+##################################################
+##################################################
+############Run Experiment Functions##############
+##################################################
+##################################################
+##################################################
 
 def train_tml_model_nested_cv(opt: argparse.Namespace, parent_dir:str, num_points:int=None) -> None:
 
@@ -55,59 +63,60 @@ def train_tml_model_nested_cv(opt: argparse.Namespace, parent_dir:str, num_point
         log_dir = f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/results_atomistic_potential/"
 
     
-    # Loop through the nested cross validation iterators
-    # The outer loop is for the outer fold or test fold
-    for outer in range(1, opt.folds+1):
-        # The inner loop is for the inner fold or validation fold
-        for inner in range(1, opt.folds):
+    if check_dir(log_dir):
+        # Loop through the nested cross validation iterators
+        # The outer loop is for the outer fold or test fold
+        for outer in range(1, opt.folds+1):
+            # The inner loop is for the inner fold or validation fold
+            for inner in range(1, opt.folds):
 
-            # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
-            real_inner = inner +1 if outer <= inner else inner
-            # Increment the counter
-            counter += 1
+                # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
+                real_inner = inner +1 if outer <= inner else inner
+                # Increment the counter
+                counter += 1
 
-            # Get the train, validation and test sets
-            train_set, val_set, test_set = next(ncv_iterator)
-            # Choose the model
-            model = LinearRegression()
-            # Fit the model
-            model.fit(train_set[descriptors], train_set['dft'])
-            # Predict the train set
-            preds = model.predict(train_set[descriptors])
-            train_rmse = sqrt(mean_squared_error(train_set['dft'], preds))
-            # Predict the validation set
-            preds = model.predict(val_set[descriptors])
-            val_rmse = sqrt(mean_squared_error(val_set['dft'], preds))
-            # Predict the test set
-            preds = model.predict(test_set[descriptors])
-            test_rmse = sqrt(mean_squared_error(test_set['dft'], preds))
+                # Get the train, validation and test sets
+                train_set, val_set, test_set = next(ncv_iterator)
+                # Choose the model
+                model = LinearRegression()
+                # Fit the model
+                model.fit(train_set[descriptors], train_set['dft'])
+                # Predict the train set
+                preds = model.predict(train_set[descriptors])
+                train_rmse = sqrt(mean_squared_error(train_set['dft'], preds))
+                # Predict the validation set
+                preds = model.predict(val_set[descriptors])
+                val_rmse = sqrt(mean_squared_error(val_set['dft'], preds))
+                # Predict the test set
+                preds = model.predict(test_set[descriptors])
+                test_rmse = sqrt(mean_squared_error(test_set['dft'], preds))
 
-            print('Outer: {} | Inner: {} | Run {}/{} | Train RMSE {:.3f} eV | Val RMSE {:.3f} eV | Test RMSE {:.3f} eV'.\
-                  format(outer, real_inner, counter, TOT_RUNS, train_rmse, val_rmse, test_rmse) )
+                print('Outer: {} | Inner: {} | Run {}/{} | Train RMSE {:.3f} eV | Val RMSE {:.3f} eV | Test RMSE {:.3f} eV'.\
+                    format(outer, real_inner, counter, TOT_RUNS, train_rmse, val_rmse, test_rmse) )
+                
+                # Generate a report of the model performance
+                tml_report(log_dir=log_dir,
+                        data = (train_set, val_set, test_set),
+                        outer = outer,
+                        inner = real_inner,
+                        model = model,
+                        )
+                
+                # Reset the variables of the training
+                del model, train_set, val_set, test_set
             
-            # Generate a report of the model performance
-            tml_report(log_dir=log_dir,
-                       data = (train_set, val_set, test_set),
-                       outer = outer,
-                       inner = real_inner,
-                       model = model,
-                       )
+            print('All runs for outer test fold {} completed'.format(outer))
+            print('Generating outer report')
+
+            # Generate a report of the model performance for the outer/test fold
+            network_outer_report(
+                log_dir=f"{log_dir}/Fold_{outer}_test_set/",
+                outer=outer,
+            )
+
+            print('---------------------------------')
             
-            # Reset the variables of the training
-            del model, train_set, val_set, test_set
-        
-        print('All runs for outer test fold {} completed'.format(outer))
-        print('Generating outer report')
-
-        # Generate a report of the model performance for the outer/test fold
-        network_outer_report(
-            log_dir=f"{log_dir}/Fold_{outer}_test_set/",
-            outer=outer,
-        )
-
-        print('---------------------------------')
-        
-    print('All runs completed')
+        print('All runs completed')
 
 
 def train_networt_less_points(opt: argparse.Namespace, current_dir:str, n_points:int=None) -> None:
@@ -127,119 +136,121 @@ def train_networt_less_points(opt: argparse.Namespace, current_dir:str, n_points
     counter = 0
     TOT_RUNS = opt.folds*(opt.folds-1)
 
-    # Loop through the nested cross validation iterators
-    # The outer loop is for the outer fold or test fold
-    for outer in range(1, opt.folds+1):
-        # The inner loop is for the inner fold or validation fold
-        for inner in range(1, opt.folds):
+    # checks if the directory with previous results exists
+    if check_dir(f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/less_points_exps/num_points_{n_points}/results_GNN/"):
+        # Loop through the nested cross validation iterators
+        # The outer loop is for the outer fold or test fold
+        for outer in range(1, opt.folds+1):
+            # The inner loop is for the inner fold or validation fold
+            for inner in range(1, opt.folds):
 
-            # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
-            real_inner = inner +1 if outer <= inner else inner
+                # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
+                real_inner = inner +1 if outer <= inner else inner
 
-            # Initiate the early stopping parameters
-            val_best_loss = 1000
-            early_stopping_counter = 0
-            best_epoch = 0
-            # Increment the counter
-            counter += 1
-            # Get the data loaders
-            train_loader, val_loader, test_loader = next(ncv_iterators)
-            # Initiate the lists to store the losses
-            train_list, val_list, test_list = [], [], []
-            lr_list = []
-            # Create the GNN model
-            model = make_network(network_name = "CGC",
-                                 opt = opt, 
-                                 n_node_features= carbides.num_node_features,
-                                 n_edge_features= carbides.num_edge_features).to(device)
-            
-            # Start the timer for the training
-            start_time = time.time()
+                # Initiate the early stopping parameters
+                val_best_loss = 1000
+                early_stopping_counter = 0
+                best_epoch = 0
+                # Increment the counter
+                counter += 1
+                # Get the data loaders
+                train_loader, val_loader, test_loader = next(ncv_iterators)
+                # Initiate the lists to store the losses
+                train_list, val_list, test_list = [], [], []
+                lr_list = []
+                # Create the GNN model
+                model = make_network(network_name = "CGC",
+                                    opt = opt, 
+                                    n_node_features= carbides.num_node_features,
+                                    n_edge_features= carbides.num_edge_features).to(device)
+                
+                # Start the timer for the training
+                start_time = time.time()
 
-            for epoch in range(1, opt.epochs+1):
+                for epoch in range(1, opt.epochs+1):
 
-                # Checks if the early stopping counter is less than the early stopping parameter
-                if early_stopping_counter <= opt.early_stopping:
+                    # Checks if the early stopping counter is less than the early stopping parameter
+                    if early_stopping_counter <= opt.early_stopping:
 
-                    # Get the learning rate
-                    lr = model.scheduler.optimizer.param_groups[0]['lr']
+                        # Get the learning rate
+                        lr = model.scheduler.optimizer.param_groups[0]['lr']
 
-                    # Train the model
-                    train_loss = train_network(model, train_loader, device)
-                    # Evaluate the model
-                    val_loss = eval_network(model, val_loader, device)
-                    model.scheduler.step(val_loss)
-                    # Evaluate the model on the test set
-                    test_loss = eval_network(model, test_loader, device)  
+                        # Train the model
+                        train_loss = train_network(model, train_loader, device)
+                        # Evaluate the model
+                        val_loss = eval_network(model, val_loader, device)
+                        model.scheduler.step(val_loss)
+                        # Evaluate the model on the test set
+                        test_loss = eval_network(model, test_loader, device)  
 
-                    print('{}/{}-Epoch {:03d} | LR: {:.5f} | Train loss: {:.3f} eV | Validation loss: {:.3f} eV | '             
-                        'Test loss: {:.3f} eV'.format(counter, TOT_RUNS, epoch, lr, train_loss, val_loss, test_loss))
-                    
-                    if epoch %5 == 0:
-                        # Append the losses to the lists
-                        train_list.append(train_loss)
-                        val_list.append(val_loss)
-                        test_list.append(test_loss)
-                        lr_list.append(lr)
+                        print('{}/{}-Epoch {:03d} | LR: {:.5f} | Train loss: {:.3f} eV | Validation loss: {:.3f} eV | '             
+                            'Test loss: {:.3f} eV'.format(counter, TOT_RUNS, epoch, lr, train_loss, val_loss, test_loss))
                         
-                    # Save the model if the validation loss is the best
-                    if val_loss < val_best_loss:
-                            # Best validation loss and early stopping counter updated
-                            val_best_loss, best_epoch = val_loss, epoch
-                            early_stopping_counter = 0
-                            print('New best validation loss: {:.4f} found at epoch {}'.format(val_best_loss, best_epoch))
-                            # Save the  best model parameters
-                            best_model_params = deepcopy(model.state_dict())
+                        if epoch %5 == 0:
+                            # Append the losses to the lists
+                            train_list.append(train_loss)
+                            val_list.append(val_loss)
+                            test_list.append(test_loss)
+                            lr_list.append(lr)
+                            
+                        # Save the model if the validation loss is the best
+                        if val_loss < val_best_loss:
+                                # Best validation loss and early stopping counter updated
+                                val_best_loss, best_epoch = val_loss, epoch
+                                early_stopping_counter = 0
+                                print('New best validation loss: {:.4f} found at epoch {}'.format(val_best_loss, best_epoch))
+                                # Save the  best model parameters
+                                best_model_params = deepcopy(model.state_dict())
+                        else:
+                                # Early stopping counter is incremented
+                                early_stopping_counter += 1
+
+                        if epoch == opt.epochs-1:
+                            print('Maximum number of epochs reached')
+
                     else:
-                            # Early stopping counter is incremented
-                            early_stopping_counter += 1
+                        print('Early stopping limit reached')
+                        break
+                
+                print('---------------------------------')
+                # End the timer for the training
+                training_time = (time.time() - start_time)/60
+                print('Training time: {:.2f} minutes'.format(training_time))
 
-                    if epoch == opt.epochs-1:
-                        print('Maximum number of epochs reached')
+                print(f"Training for test outer fold: {outer}, and validation inner fold: {real_inner} completed.")
+                print(f"Train size: {len(train_loader.dataset)}, Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)}")
 
-                else:
-                    print('Early stopping limit reached')
-                    break
+                print('---------------------------------')
+
+                # Report the model performance
+                network_report(
+                    log_dir=f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/less_points_exps/num_points_{n_points}/results_GNN/",
+                    loaders=(train_loader, val_loader, test_loader),
+                    outer=outer,
+                    inner=real_inner,
+                    loss_lists=(train_list, val_list, test_list),
+                    lr_list=lr_list,
+                    save_all=True,
+                    model=model,
+                    model_params=best_model_params,
+                    best_epoch=best_epoch,
+                )
+
+                # Reset the variables of the training
+                del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch
             
-            print('---------------------------------')
-            # End the timer for the training
-            training_time = (time.time() - start_time)/60
-            print('Training time: {:.2f} minutes'.format(training_time))
+            print(f'All runs for outer test fold {outer} completed')
+            print('Generating outer report')
 
-            print(f"Training for test outer fold: {outer}, and validation inner fold: {real_inner} completed.")
-            print(f"Train size: {len(train_loader.dataset)}, Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)}")
-
-            print('---------------------------------')
-
-            # Report the model performance
-            network_report(
-                log_dir=f"{current_dir}/{opt.log_dir_results}/Mo2C_222/less_points_exps/num_points_{n_points}/results_GNN/",
-                loaders=(train_loader, val_loader, test_loader),
+            network_outer_report(
+                log_dir=f"{current_dir}/{opt.log_dir_results}/{opt.exp_name}/less_points_exps/num_points_{n_points}/results_GNN/Fold_{outer}_test_set/",
                 outer=outer,
-                inner=real_inner,
-                loss_lists=(train_list, val_list, test_list),
-                lr_list=lr_list,
-                save_all=True,
-                model=model,
-                model_params=best_model_params,
-                best_epoch=best_epoch,
+                folds=opt.folds,
             )
 
-            # Reset the variables of the training
-            del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch
+            print('---------------------------------')
         
-        print(f'All runs for outer test fold {outer} completed')
-        print('Generating outer report')
-
-        network_outer_report(
-            log_dir=f"{current_dir}/{opt.log_dir_results}/Mo2C_222/less_points_exps/num_points_{n_points}/results_GNN/Fold_{outer}_test_set/",
-            outer=outer,
-            folds=opt.folds,
-        )
-
-        print('---------------------------------')
-    
-    print('All runs completed')
+        print('All runs completed')
 
 
 
@@ -260,55 +271,180 @@ def predict_final_test(parent_dir:str, opt: argparse.Namespace) -> None:
     experiments_gnn = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_224', 'results_GNN')
     experiments_tml = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_224', f'results_atomistic_potential')
 
-    for outer in range(1, opt.folds+1):
-        print('Analysing models trained using as test set {}'.format(outer))
-        for inner in range(1, opt.folds):
+    if check_dir(experiments_gnn) and check_dir(experiments_tml):
+        for outer in range(1, opt.folds+1):
+            print('Analysing models trained using as test set {}'.format(outer))
+            for inner in range(1, opt.folds):
+        
+                real_inner = inner +1 if outer <= inner else inner
+                
+                print('Analysing models trained using as validation set {}'.format(real_inner))
+
+                model_dir = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_222', 'results_GNN', f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+
+                model = torch.load(model_dir+'/model.pth')
+                model_params = torch.load(model_dir+'/model_params.pth')
+                train_loader = torch.load(model_dir+'/train_loader.pth')
+                val_loader = torch.load(model_dir+'/val_loader.pth')
+
+                network_report(log_dir=experiments_gnn,
+                            loaders=(train_loader, val_loader, test_loader),
+                            outer=outer,
+                            inner=real_inner,
+                            loss_lists=[None, None, None],
+                                lr_list=None,
+                            model=model,
+                            model_params=model_params,
+                            best_epoch=None,
+                            save_all=False,
+                            normalize=True)
+                
+                tml_dir = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_222', f'results_atomistic_potential', f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+
+                model = joblib.load(tml_dir+'/model.sav')
+                train_data = pd.read_csv(tml_dir+'/train.csv')
+                val_data = pd.read_csv(tml_dir+'/val.csv')
+
+                tml_report(log_dir=experiments_tml,
+                        outer=outer,
+                        inner=real_inner,
+                        model=model,
+                        data=(train_data,val_data,test_set),
+                        save_all=False,
+                        normalize=True,)
+                
+                            
+            network_outer_report(log_dir=f"{experiments_gnn}/Fold_{outer}_test_set/", 
+                                outer=outer)
+            
+            network_outer_report(log_dir=f"{experiments_tml}/Fold_{outer}_test_set/", 
+                                outer=outer)
+            
+        print('All runs completed')
+
+
+
+def explain_model(exp_dir, opt: argparse.Namespace) -> None:
+
+    experiments = os.path.join(exp_dir, opt.exp_name, 'results_GNN')
+
+    if not opt.explain_outer or not opt.explain_inner:
+        random.seed(opt.global_seed)
+
+    if not opt.explain_outer:
+        outer = random.randint(1, opt.folds)
+    else:
+        outer = opt.explain_outer
     
-            real_inner = inner +1 if outer <= inner else inner
+    if not opt.explain_inner:
+        inner = random.randint(1, opt.folds-1)
+        inner = inner +1 if outer <= inner else inner
+    else:
+        inner = opt.explain_inner
+
+    print(f'Explaining model trained using as test set {outer} and validation set {inner}')
+
+    model_dir = os.path.join(experiments, f'Fold_{outer}_test_set', f'Fold_{inner}_val_set')
+
+    model = torch.load(model_dir+'/model.pth')
+    model_params = torch.load(model_dir+'/model_params.pth')
+    model.load_state_dict(model_params)
+
+
+    loader = torch.load(model_dir+f'/{opt.explain_set}_loader.pth')
+
+    results_summary = pd.DataFrame(columns=['Geometry', 'Mean Attribution Score', 'Std. Attribution Score'])
+
+
+    for geometry in opt.explain_geom:
+
+        print('Analysing {} geometry for {} set'.format(geometry, 'test'))
+
+        m_prediction, nm_prediction, y, indexes = [], [], [], []
+
+        dataset = loader.dataset
+        loader = DataLoader(dataset, batch_size=1, shuffle=False)
+
+        for batch in loader:
+
+            emb = model.get_intermediate_embedding(batch)
+            batch.embeddings = emb
+            permuted_batch, num_frag_removed = permute_graphs(batch, shape=geometry)
+
+            try:
+                permuted_batch.x = permuted_batch.embeddings
+                masked_prediction = model.get_final_prediction(permuted_batch)
+                prediction = model.forward(batch)
+
+                if opt.normalize_attr_score == True and num_frag_removed > 1:
+                    print('Original masked prediction {:.4f} has to be normalised since {} repeated fragments have been found.'\
+                          .format(masked_prediction.item(), num_frag_removed))
+                    masked_prediction = masked_prediction/num_frag_removed 
+                    print('New normalised masked prediction {:.4f}'.format(masked_prediction.item()))
+                else:
+                    pass
+
+
+                m_prediction.append(masked_prediction.cpu().detach().numpy())
+                nm_prediction.append(prediction.cpu().detach().numpy())
+                y.append(batch.y.cpu().detach().numpy())
+                indexes.append(batch.file_name)
+                print('Structure {} has been analysed'.format(batch.file_name[0]))
+
             
-            print('Analysing models trained using as validation set {}'.format(real_inner))
+            except:
+                print('Structure {} could not be analysed since all its nodes were removed'.format(permuted_batch.file_name[0]))
 
-            model_dir = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_222', 'results_GNN', f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+        m_prediction = np.concatenate(m_prediction).ravel()
+        nm_prediction = np.concatenate(nm_prediction).ravel()
+        y = np.concatenate(y).ravel()
+        indexes = np.concatenate(indexes).ravel()
 
-            model = torch.load(model_dir+'/model.pth')
-            model_params = torch.load(model_dir+'/model_params.pth')
-            train_loader = torch.load(model_dir+'/train_loader.pth')
-            val_loader = torch.load(model_dir+'/val_loader.pth')
+        diff_m_nm = nm_prediction - m_prediction 
 
-            network_report(log_dir=experiments_gnn,
-                           loaders=(train_loader, val_loader, test_loader),
-                           outer=outer,
-                           inner=real_inner,
-                           loss_lists=[None, None, None],
-                            lr_list=None,
-                           model=model,
-                           model_params=model_params,
-                           best_epoch=None,
-                           save_all=False,
-                           normalize=True)
-            
-            tml_dir = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_222', f'results_atomistic_potential', f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+        if opt.exclude_zero_structure == True:
+            diff_m_nm = diff_m_nm[diff_m_nm != 0]
+            print('Structures with zero difference in prediction were excluded')
 
-            model = joblib.load(tml_dir+'/model.sav')
-            train_data = pd.read_csv(tml_dir+'/train.csv')
-            val_data = pd.read_csv(tml_dir+'/val.csv')
+        log_dir = os.path.join(model_dir, 'explanations', f'{opt.explain_set}_set')
+        os.makedirs(log_dir, exist_ok=True)
 
-            tml_report(log_dir=experiments_tml,
-                       outer=outer,
-                       inner=real_inner,
-                       model=model,
-                       data=(train_data,val_data,test_set),
-                       save_all=False,
-                       normalize=True,)
-            
-                        
-        network_outer_report(log_dir=f"{experiments_gnn}/Fold_{outer}_test_set/", 
-                             outer=outer)
-        
-        network_outer_report(log_dir=f"{experiments_tml}/Fold_{outer}_test_set/", 
-                             outer=outer)
-        
-    print('All runs completed')
+        plot_diff_distribution(diff_m_nm, log_dir, 'Y-Y_m_disttribution_{}'.format(geometry))
+
+        geom_info = {}
+        geom_info['Geometry'] = [geometry]
+        geom_info['Mean Attribution Score'] = [np.mean(diff_m_nm)]
+        geom_info['Std. Attribution Score'] = [np.std(diff_m_nm)]
+
+        geom_info = pd.DataFrame(geom_info)
+
+        results_summary = pd.concat([results_summary, geom_info], axis = 0, ignore_index=True)
+
+
+        print('Distribution of differences plot was saved in {}'.format(log_dir))
+
+        del m_prediction, nm_prediction, y, indexes, diff_m_nm
+    
+    results_summary['Normalised Attribution Score'] = (results_summary['Mean Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
+                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
+    
+    results_summary['Normalised Std. Attr. Score'] = (results_summary['Std. Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
+                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
+    
+    results_summary = results_summary.sort_values(by='Normalised Attribution Score', ascending=False)
+    results_summary = results_summary.reset_index(drop=True)
+    results_summary.index.name = 'Importance Rank'
+    results_summary.index += 1
+    results_summary.to_csv(os.path.join(log_dir, 'summary_results.csv'))
+
+
+
+##################################################
+##################################################
+############ Plot results Functions ##############
+##################################################
+##################################################
+##################################################
 
 
 def plot_results(exp_dir, opt: argparse.Namespace) -> None:
@@ -382,90 +518,91 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
                 results_224 = pd.concat([results_224, df_tml_224], axis=0, ignore_index=True)
 
     save_dir = f'{exp_dir}/{opt.exp_name}/GNN_vs_MLR'
-    os.makedirs(save_dir, exist_ok=True)
-    
-    mae_mean_gnn = np.array([entry['mean'] for entry in mae_gnn])
-    mae_gnn_std = np.array([entry['std'] for entry in mae_gnn])
-
-    mae_mean_mlr = np.array([entry['mean'] for entry in mae_mlr])
-    mae_mlr_std = np.array([entry['std'] for entry in mae_mlr])
-
-    rmse_mean_gnn = np.array([entry['mean'] for entry in rmse_gnn])
-    rmse_gnn_std = np.array([entry['std'] for entry in rmse_gnn])
-
-    rmse_mean_mlr = np.array([entry['mean'] for entry in rmse_mlr])
-    rmse_mlr_std = np.array([entry['std'] for entry in rmse_mlr])
-
-    minimun = np.min(np.array([
-        (mae_mean_gnn - mae_gnn_std).min(), 
-        (mae_mean_mlr - mae_mlr_std).min(),
-        (rmse_mean_gnn - rmse_gnn_std).min(), 
-        (rmse_mean_mlr - rmse_mlr_std).min()]))
-    
-    maximun = np.max(np.array([
-        (mae_mean_gnn + mae_gnn_std).max(),
-        (mae_mean_mlr + mae_mlr_std).max(),
-        (rmse_mean_gnn + rmse_gnn_std).max(), 
-        (rmse_mean_mlr + rmse_mlr_std).max()]))
-
-
-    create_bar_plot(means=(mae_mean_gnn, mae_mean_mlr), stds=(mae_gnn_std, mae_mlr_std), min = minimun, max = maximun, metric = 'MAE', save_path= save_dir, tml_algorithm='Atomistic Potential')
-    create_bar_plot(means=(rmse_mean_gnn, rmse_mean_mlr), stds=(rmse_gnn_std, rmse_mlr_std), min = minimun, max = maximun, metric = 'RMSE', save_path= save_dir, tml_algorithm='Atomistic Potential')
-
-    r2_mean_gnn = np.array([entry['mean'] for entry in r2_gnn])
-    r2_gnn_std = np.array([entry['std'] for entry in r2_gnn])
-
-    r2_mean_mlr = np.array([entry['mean'] for entry in r2_mlr])
-    r2_mlr_std = np.array([entry['std'] for entry in r2_mlr])
-
-    minimun = np.min(np.array([
-    (r2_mean_gnn - r2_gnn_std).min(),
-    (r2_mean_mlr - r2_mlr_std).min(),
-    ]))
-
-    maximun = np.max(np.array([
-    (r2_mean_gnn + r2_gnn_std).max(),
-    (r2_mean_mlr + r2_mlr_std).max(),
-    ]))
-
-    create_bar_plot(means=(r2_mean_gnn, r2_mean_mlr), stds=(r2_gnn_std, r2_mlr_std), min = minimun, max = maximun, metric = 'R2', save_path= save_dir, tml_algorithm='Atomistic Potential')
-    
-    results_all['ML_Predicted_Energy(eV)'] = results_all['GNN_energy(eV)'].fillna(results_all['AtomisticPotential_energy(eV)'])
-    results_all = results_all.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)
-    results_all['Error'] = results_all['DFT_energy(eV)'] - results_all['ML_Predicted_Energy(eV)']
-
-    results_all.to_csv(f'{save_dir}/all_predictions.csv', index=False)
-
-    create_violin_plot(data=results_all, save_path= save_dir)
-    create_strip_plot(data=results_all, save_path= save_dir)
-
-    if opt.exp_name == 'Mo2C_222':
-        save_dir = f'{exp_dir}/Mo2C_224/GNN_vs_MLR'
+    if check_dir(save_dir):
         os.makedirs(save_dir, exist_ok=True)
+        
+        mae_mean_gnn = np.array([entry['mean'] for entry in mae_gnn])
+        mae_gnn_std = np.array([entry['std'] for entry in mae_gnn])
 
-        results_224['ML_Predicted_Energy(eV)'] = results_224['GNN_energy(eV)'].fillna(results_224['AtomisticPotential_energy(eV)'])
-        results_224 = results_224.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)
-        results_224['Error'] = results_224['DFT_energy(eV)'] - results_224['ML_Predicted_Energy(eV)']
+        mae_mean_mlr = np.array([entry['mean'] for entry in mae_mlr])
+        mae_mlr_std = np.array([entry['std'] for entry in mae_mlr])
 
-        results_224.to_csv(f'{save_dir}/all_predictions.csv', index=False)
+        rmse_mean_gnn = np.array([entry['mean'] for entry in rmse_gnn])
+        rmse_gnn_std = np.array([entry['std'] for entry in rmse_gnn])
 
-        df_gnn = results_224.loc[results_224['Method'] == 'GNN']
+        rmse_mean_mlr = np.array([entry['mean'] for entry in rmse_mlr])
+        rmse_mlr_std = np.array([entry['std'] for entry in rmse_mlr])
 
-        for structure in df_gnn['index'].unique():
-            df_gnn.loc[df_gnn['index'] == structure, 'Mean_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
-            df_gnn.loc[df_gnn['index'] == structure, 'Std_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+        minimun = np.min(np.array([
+            (mae_mean_gnn - mae_gnn_std).min(), 
+            (mae_mean_mlr - mae_mlr_std).min(),
+            (rmse_mean_gnn - rmse_gnn_std).min(), 
+            (rmse_mean_mlr - rmse_mlr_std).min()]))
+        
+        maximun = np.max(np.array([
+            (mae_mean_gnn + mae_gnn_std).max(),
+            (mae_mean_mlr + mae_mlr_std).max(),
+            (rmse_mean_gnn + rmse_gnn_std).max(), 
+            (rmse_mean_mlr + rmse_mlr_std).max()]))
 
-        df_gnn = df_gnn.drop_duplicates(subset='index', keep='first')
 
-        df_mlr = results_224.loc[results_224['Method'] == 'AtomisticPotential']
+        create_bar_plot(means=(mae_mean_gnn, mae_mean_mlr), stds=(mae_gnn_std, mae_mlr_std), min = minimun, max = maximun, metric = 'MAE', save_path= save_dir, tml_algorithm='Atomistic Potential')
+        create_bar_plot(means=(rmse_mean_gnn, rmse_mean_mlr), stds=(rmse_gnn_std, rmse_mlr_std), min = minimun, max = maximun, metric = 'RMSE', save_path= save_dir, tml_algorithm='Atomistic Potential')
 
-        for structure in df_mlr['index'].unique():
-            df_mlr.loc[df_mlr['index'] == structure, 'Mean_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
-            df_mlr.loc[df_mlr['index'] == structure, 'Std_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+        r2_mean_gnn = np.array([entry['mean'] for entry in r2_gnn])
+        r2_gnn_std = np.array([entry['std'] for entry in r2_gnn])
 
-        df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
+        r2_mean_mlr = np.array([entry['mean'] for entry in r2_mlr])
+        r2_mlr_std = np.array([entry['std'] for entry in r2_mlr])
 
-        plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
+        minimun = np.min(np.array([
+        (r2_mean_gnn - r2_gnn_std).min(),
+        (r2_mean_mlr - r2_mlr_std).min(),
+        ]))
+
+        maximun = np.max(np.array([
+        (r2_mean_gnn + r2_gnn_std).max(),
+        (r2_mean_mlr + r2_mlr_std).max(),
+        ]))
+
+        create_bar_plot(means=(r2_mean_gnn, r2_mean_mlr), stds=(r2_gnn_std, r2_mlr_std), min = minimun, max = maximun, metric = 'R2', save_path= save_dir, tml_algorithm='Atomistic Potential')
+        
+        results_all['ML_Predicted_Energy(eV)'] = results_all['GNN_energy(eV)'].fillna(results_all['AtomisticPotential_energy(eV)'])
+        results_all = results_all.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)
+        results_all['Error'] = results_all['DFT_energy(eV)'] - results_all['ML_Predicted_Energy(eV)']
+
+        results_all.to_csv(f'{save_dir}/all_predictions.csv', index=False)
+
+        create_violin_plot(data=results_all, save_path= save_dir)
+        create_strip_plot(data=results_all, save_path= save_dir)
+
+        if opt.exp_name == 'Mo2C_222':
+            save_dir = f'{exp_dir}/Mo2C_224/GNN_vs_MLR'
+            os.makedirs(save_dir, exist_ok=True)
+
+            results_224['ML_Predicted_Energy(eV)'] = results_224['GNN_energy(eV)'].fillna(results_224['AtomisticPotential_energy(eV)'])
+            results_224 = results_224.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)
+            results_224['Error'] = results_224['DFT_energy(eV)'] - results_224['ML_Predicted_Energy(eV)']
+
+            results_224.to_csv(f'{save_dir}/all_predictions.csv', index=False)
+
+            df_gnn = results_224.loc[results_224['Method'] == 'GNN']
+
+            for structure in df_gnn['index'].unique():
+                df_gnn.loc[df_gnn['index'] == structure, 'Mean_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
+                df_gnn.loc[df_gnn['index'] == structure, 'Std_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+
+            df_gnn = df_gnn.drop_duplicates(subset='index', keep='first')
+
+            df_mlr = results_224.loc[results_224['Method'] == 'AtomisticPotential']
+
+            for structure in df_mlr['index'].unique():
+                df_mlr.loc[df_mlr['index'] == structure, 'Mean_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
+                df_mlr.loc[df_mlr['index'] == structure, 'Std_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+
+            df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
+
+            plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
 
 
 def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
@@ -521,128 +658,10 @@ def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
 
     exp_dir = f'{exp_dir}/results_GNN_vs_AP'
 
-    os.makedirs(exp_dir, exist_ok=True)
+    if check_dir(exp_dir):
+        os.makedirs(exp_dir, exist_ok=True)
 
-    plot_num_points_effect(means=(r2_gnn_all, r2_ap_all), stds=(r2_std_gnn_all, r2_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='R2', save_path=exp_dir)
-    plot_num_points_effect(means=(mae_gnn_all, mae_ap_all), stds=(mae_std_gnn_all, mae_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='MAE', save_path=exp_dir)
-    plot_num_points_effect(means=(rmse_gnn_all, rmse_ap_all), stds=(rmse_std_gnn_all, rmse_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='RMSE', save_path=exp_dir)
-
-
-def explain_model(exp_dir, opt: argparse.Namespace) -> None:
-
-    experiments = os.path.join(exp_dir, opt.exp_name, 'results_GNN')
-
-    if not opt.explain_outer or not opt.explain_inner:
-        random.seed(opt.global_seed)
-
-    if not opt.explain_outer:
-        outer = random.randint(1, opt.folds)
-    else:
-        outer = opt.explain_outer
-    
-    if not opt.explain_inner:
-        inner = random.randint(1, opt.folds-1)
-        inner = inner +1 if outer <= inner else inner
-    else:
-        inner = opt.explain_inner
-
-    print(f'Explaining model trained using as test set {outer} and validation set {inner}')
-
-    model_dir = os.path.join(experiments, f'Fold_{outer}_test_set', f'Fold_{inner}_val_set')
-
-    model = torch.load(model_dir+'/model.pth')
-    model_params = torch.load(model_dir+'/model_params.pth')
-    model.load_state_dict(model_params)
-
-
-    train_loader = torch.load(model_dir+'/train_loader.pth')
-    val_loader = torch.load(model_dir+'/val_loader.pth')
-    loader = torch.load(model_dir+'/test_loader.pth')
-
-    results_summary = pd.DataFrame(columns=['Geometry', 'Mean Attribution Score', 'Std. Attribution Score'])
-
-
-    for geometry in opt.explain_geom:
-
-        print('Analysing {} geometry for {} set'.format(geometry, 'test'))
-
-        m_prediction, nm_prediction, y, indexes = [], [], [], []
-
-        dataset = loader.dataset
-        loader = DataLoader(dataset, batch_size=1, shuffle=False)
-
-        for batch in loader:
-
-            emb = model.get_intermediate_embedding(batch)
-            batch.embeddings = emb
-            permuted_batch, num_frag_removed = permute_graphs(batch, shape=geometry)
-
-            try:
-                permuted_batch.x = permuted_batch.embeddings
-                masked_prediction = model.get_final_prediction(permuted_batch)
-                prediction = model.forward(batch)
-
-                if opt.normalize_attr_score == True:
-                    print('Original masked prediction {:.4f} has to be normalised since {} repeated fragments have been found.'\
-                          .format(masked_prediction.item(), num_frag_removed))
-                    masked_prediction = masked_prediction/num_frag_removed if num_frag_removed != 0 else masked_prediction
-                    print('New normalised masked prediction {:.4f}'.format(masked_prediction.item()))
-                else:
-                    pass
-
-
-                m_prediction.append(masked_prediction.cpu().detach().numpy())
-                nm_prediction.append(prediction.cpu().detach().numpy())
-                y.append(batch.y.cpu().detach().numpy())
-                indexes.append(batch.file_name)
-                print('Structure {} has been analysed'.format(batch.file_name[0]))
-
-            
-            except:
-                print('Structure {} could not be analysed since all its nodes were removed'.format(permuted_batch.file_name[0]))
-
-        m_prediction = np.concatenate(m_prediction).ravel()
-        nm_prediction = np.concatenate(nm_prediction).ravel()
-        y = np.concatenate(y).ravel()
-        indexes = np.concatenate(indexes).ravel()
-
-        diff_m_nm = nm_prediction - m_prediction 
-
-        if opt.exclude_zero_structure == True:
-            diff_m_nm = diff_m_nm[diff_m_nm != 0]
-            print('Structures with zero difference in prediction were excluded')
-
-        log_dir = os.path.join(model_dir, 'explanations')
-        os.makedirs(log_dir, exist_ok=True)
-
-        plot_diff_distribution(diff_m_nm, log_dir, 'Y-Y_m_disttribution_{}'.format(geometry))
-
-        geom_info = {}
-        geom_info['Geometry'] = [geometry]
-        geom_info['Mean Attribution Score'] = [np.mean(diff_m_nm)]
-        geom_info['Std. Attribution Score'] = [np.std(diff_m_nm)]
-
-        geom_info = pd.DataFrame(geom_info)
-
-        results_summary = pd.concat([results_summary, geom_info], axis = 0, ignore_index=True)
-
-
-        print('Distribution of differences plot was saved in {}'.format(log_dir))
-
-        del m_prediction, nm_prediction, y, indexes, diff_m_nm
-    
-    results_summary['Normalised Attribution Score'] = (results_summary['Mean Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
-                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
-    
-    results_summary['Normalised Std. Attr. Score'] = (results_summary['Std. Attribution Score'] - results_summary['Mean Attribution Score'].min()) / \
-                                                (results_summary['Mean Attribution Score'].max() - results_summary['Mean Attribution Score'].min())
-    
-    results_summary = results_summary.sort_values(by='Normalised Attribution Score', ascending=False)
-    results_summary = results_summary.reset_index(drop=True)
-    results_summary.index.name = 'Importance Rank'
-    results_summary.index += 1
-    results_summary.to_csv(os.path.join(log_dir, 'summary_results.csv'))
-
-
-
+        plot_num_points_effect(means=(r2_gnn_all, r2_ap_all), stds=(r2_std_gnn_all, r2_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='R2', save_path=exp_dir)
+        plot_num_points_effect(means=(mae_gnn_all, mae_ap_all), stds=(mae_std_gnn_all, mae_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='MAE', save_path=exp_dir)
+        plot_num_points_effect(means=(rmse_gnn_all, rmse_ap_all), stds=(rmse_std_gnn_all, rmse_std_ap_all), num_points=list(range(100,1001, opt.sampling_size)), metric='RMSE', save_path=exp_dir)
 
