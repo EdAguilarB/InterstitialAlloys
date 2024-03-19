@@ -1,4 +1,4 @@
-12-Mar-2024, 13:29:49
+18-Mar-2024, 15:37:03
 ---------------------------------------------------------
 Traditional ML algorithm Performance
 Dataset Size = 1065
@@ -34,4 +34,4 @@ Mean Absolute Percentage Error = 0.043
 Error Standard Deviation = 0.157
 ---------------------------------------------------------
 OUTLIERS (TEST SET)
-01) 929.vasp    Error: -0.48 %    (index=192)
+01) 929.vasp    Error: -0.476 eV    (index=192)

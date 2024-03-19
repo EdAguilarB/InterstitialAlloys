@@ -41,8 +41,8 @@ def create_st_parity_plot(real, predicted, figure_name, save_path=None):
     plt.figure(figsize=(8, 8))
     plt.scatter(real, predicted, alpha=0.7)
     plt.plot([min(real), max(real)], [min(real), max(real)], color='red', linestyle='--')
-    plt.xlabel('DFT Calculated Internal Energy (eV)')
-    plt.ylabel('GNN Predicted Internal Energy (eV)')
+    plt.xlabel('DFT Calculated Internal Energy (eV)', fontsize=16)
+    plt.ylabel('ML Predicted Internal Energy (eV)', fontsize=16)
     
     # Display R2, MAE, and RMSE as text on the plot
     textstr = f'$R^2$ = {r2:.3f}\nMAE = {mae:.3f}\nRMSE = {rmse:.3f}'
@@ -133,29 +133,31 @@ def create_training_plot(df, save_path):
 
 
 
-def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, save_path:str, tml_algorithm:str):
+def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, save_path:str, tml_algorithm:str, n_folds:int=5):
+
+    plt.figure(figsize=(10, 8), dpi=300)
 
     bar_width = 0.35
 
     mean_gnn, mean_tml = means
     std_gnn, std_tml = stds
 
-    folds = list(range(1, 6))
-    index = np.arange(5)
+    folds = list(range(1, n_folds+1))
+    index = np.arange(n_folds)
 
     plt.bar(index, mean_gnn, bar_width, label='GNN Approach', yerr=std_gnn, capsize=5)
     plt.bar(index+bar_width, mean_tml, bar_width, label=f'{tml_algorithm.upper()} Approach', yerr=std_tml, capsize=5)
 
-    plt.ylim(min*.99, max *1.01)
-    plt.xlabel('Fold Used as Test Set', fontsize = 16)
+    plt.ylim(min*.98, max *1.02)
+    plt.xlabel('Fold Used as Test Set', fontsize = 34)
 
-    label = 'Mean $R^2$ Value' if metric == 'R2' else f'Mean {metric} Value'
-    plt.ylabel(label, fontsize = 16)
+    label = 'Mean $R^2$ Value' if metric == 'R2' else f'Mean {metric} Value / eV'
+    plt.ylabel(label, fontsize = 34)
 
     plt.xticks(index + bar_width / 2, list(folds))
 
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
 
     plt.savefig(os.path.join(save_path, f'{metric}_GNN_vs_TML'), dpi=300, bbox_inches='tight')
 
@@ -167,32 +169,40 @@ def create_bar_plot(means:tuple, stds:tuple, min:float, max:float, metric:str, s
 
 def create_violin_plot(data, save_path:str):
 
-    violinplot(data = data, x='Test_Fold', y='Error', hue='Method', split=True, gap=.1, inner="quart", fill=False)
+    plt.figure(figsize=(10, 8), dpi=300)
 
-    plt.xlabel('Fold Used as Test Set', fontsize=18)
-    plt.ylabel('$Energy_{DFT}-Energy_{ML\_predicted}$', fontsize=18)
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
+    violinplot(data = data, x='Test_Fold', y='Error', hue='Method', split=True, gap=.1, inner="quart", fill=True)
+
+    plt.xlabel('Fold Used as Test Set', fontsize=34)
+    plt.ylabel('$Energy_{DFT}-Energy_{predicted}$ / eV', fontsize=30)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     ax= plt.gca()
     ax.get_legend().remove()
 
     plt.savefig(os.path.join(save_path, f'Error_distribution_GNN_vs_AP_violin_plot'), dpi=300, bbox_inches='tight')
-    plt.close()
+
+    print('Plot Error_distribution_GNN_vs_AP_violin_plot has been saved in the directory {}'.format(save_path))
+    plt.clf()
 
 
 def create_strip_plot(data, save_path:str):
 
+    plt.figure(figsize=(10, 8), dpi=300)
+
     stripplot(data = data, x='Test_Fold', y='Error', hue='Method', size=3,  dodge=True, jitter=True, marker='D', alpha=.3)
 
-    plt.xlabel('Fold Used as Test Set', fontsize=18)
-    plt.ylabel('$Energy_{DFT}-Energy_{ML\_predicted}$', fontsize=18)
-    plt.xticks(fontsize=16)
-    plt.yticks(fontsize=16)
+    plt.xlabel('Fold Used as Test Set', fontsize=34)
+    plt.ylabel('$Energy_{DFT}-Energy_{predicted}$ / eV', fontsize=30)
+    plt.xticks(fontsize=24)
+    plt.yticks(fontsize=24)
     ax= plt.gca()
     ax.get_legend().remove()
 
     plt.savefig(os.path.join(save_path, f'Error_distribution_GNN_vs_AP_strip_plot'), dpi=300, bbox_inches='tight')
-    plt.close()
+
+    print('Plot Error_distribution_GNN_vs_AP_strip_plot has been saved in the directory {}'.format(save_path))
+    plt.clf()
 
 
 def plot_parity_224(df_GNN, df_ap, save_path:str):
@@ -231,7 +241,7 @@ def plot_parity_224(df_GNN, df_ap, save_path:str):
 
     plt.legend()
     plt.savefig(os.path.join(save_path, f'parity_plot_224_cells'), dpi=300, bbox_inches='tight')
-    plt.close()
+    plt.clf()
 
 
 def plot_num_points_effect(means:tuple, stds:tuple, num_points:list, metric:str, save_path:str):
@@ -264,6 +274,8 @@ def plot_num_points_effect(means:tuple, stds:tuple, num_points:list, metric:str,
 
     print('Plot {}_vs_num_points has been saved in the directory {}'.format(metric,save_path))
 
+    plt.clf()
+
 
 def plot_diff_distribution(data, save_path, file_name):
 
@@ -292,5 +304,7 @@ def plot_diff_distribution(data, save_path, file_name):
     save_dir = os.path.join(save_path, file_name)
 
     plt.savefig(save_dir, dpi=300, bbox_inches='tight')
+
+    plt.clf()
 
     return 'Plot saved in {}'.format(save_dir)

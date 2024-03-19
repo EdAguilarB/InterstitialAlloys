@@ -10,7 +10,6 @@ from pymatgen.core.structure import Structure
 from pymatgen.analysis.local_env import VoronoiNN
 import sys
 from data.datasets import interstitial_alloy
-from sklearn.model_selection import StratifiedKFold
 from icecream import ic
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -25,13 +24,13 @@ class carbide(interstitial_alloy):
         self._norm = norm
 
         if self._include_fold:
-            filename = filename[:-4] + '_folds' + filename[-4:]
             try:
-                pd.read_csv(os.path.join(root, name, f'{filename}'))
+                file = filename[:-4] + '_folds' + filename[-4:]
+                pd.read_csv(os.path.join(root, name, f'{file}'))
             except:
-                self._split_data(root, name, opt.folds)
+                self._split_data(root, name, filename, opt.folds, opt.global_seed)
+            filename = filename[:-4] + '_folds' + filename[-4:]
                 
-
         
         root = os.path.join(root, name)
 
@@ -96,9 +95,7 @@ class carbide(interstitial_alloy):
 
     def _get_edge(self, structure):
 
-        #gdf = self._GaussianExpansion(vmin=0, vmax=self.max_d, step=self.step)
-
-        vnn = VoronoiNN(cutoff=self.max_d,allow_pathological=True,compute_adj_neighbors=False)
+        vnn = VoronoiNN(cutoff=self.vor_cut_off,allow_pathological=True,compute_adj_neighbors=False)
         
         nbr_fea_idx, nbr_fea_t = [], []
 
@@ -107,7 +104,7 @@ class carbide(interstitial_alloy):
             nbrs = vnn.get_nn_info(structure, central_atom)
 
             for nbr_info in nbrs: # newer version
-                if nbr_info['poly_info']['face_dist']*2 <= self.max_d:
+                if nbr_info['poly_info']['face_dist']*2 <= self.vor_cut_off:
                     nbr_fea_idx.append([central_atom,nbr_info['site_index']])
                     nbr_fea_t.append(nbr_info['poly_info']['solid_angle'])
 
@@ -150,7 +147,7 @@ class carbide(interstitial_alloy):
         return np.exp(-(v[..., np.newaxis] - filter)**2 / var**2)
     
 
-    def _create_folds(num_folds, df):
+    def _create_folds(self, num_folds, df):
         """
         splits a dataset in a given quantity of folds
 
@@ -179,27 +176,24 @@ class carbide(interstitial_alloy):
         # Assign the 'fold' column to the DataFrame
         df['fold'] = fold_column
 
+        df = df.set_index('file', drop=True)
+
         return df
     
 
-    def _split_data(self, root, filename, n_folds):
+    def _split_data(self, root, name, filename, n_folds, seed):
 
-        dataset = pd.read_csv(os.path.join(root, 'raw', f'{filename}'))
-        dataset['category'] = dataset['%top'].apply(lambda m: 0 if m < 50 else 1)
+        energies = pd.read_csv(os.path.join(root, name, filename))
 
-        folds = StratifiedKFold(n_splits = n_folds, shuffle = True, random_state=23)
+        energies = energies.sample(frac=1, random_state=seed)
 
-        test_idx = []
+        energies = self._create_folds(n_folds, energies)
 
-        for _, test in folds.split(dataset['ER1'], dataset['category']):
-            test_idx.append(test)
+        energies = energies.sort_index()
 
-        index_dict = {index: list_num for list_num, index_list in enumerate(test_idx) for index in index_list}
+        file = filename[:-4] + '_folds' + filename[-4:]
 
-        dataset['fold'] = dataset.index.map(index_dict)
+        energies.to_csv(os.path.join(root, name, file))
 
-        filename = filename[:-4] + '_folds' + filename[-4:]
+        print('{}.csv file was saved in {}/{}'.format(file, root, name))
 
-        dataset.to_csv(os.path.join(root, 'raw', filename))
-
-        print('{}.csv file was saved in {}'.format(filename, os.path.join(root, 'raw')))

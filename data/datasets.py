@@ -20,6 +20,7 @@ class interstitial_alloy(Dataset):
         self.filename = filename
         self.max_d = max_d
         self.step = step
+        self.vor_cut_off = opt.vor_cut_off
         self._opt = opt
         self._root = root
         super().__init__(root = self._root)
@@ -32,22 +33,6 @@ class interstitial_alloy(Dataset):
     @property
     def processed_file_names(self):
         return [f'{self._name}_{idx}.pt' for idx in range(len(self.raw_file_names))]
-    
-    @property
-    def _elem_list(self):
-        elements = [
-            'H', 
-            'B', 
-            'C', 
-            'N', 
-            'O', 
-            'F', 
-            'Si', 
-            'S', 
-            'Cl', 
-            'Br']
-        
-        return elements
     
     def download(self):
         raise NotImplementedError
