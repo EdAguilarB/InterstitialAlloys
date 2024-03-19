@@ -1,4 +1,4 @@
-12-Mar-2024, 11:44:56
+18-Mar-2024, 15:37:25
 ---------------------------------------------------------
 GNN TRAINING AND PERFORMANCE
 Best epoch: 14
@@ -29,6 +29,6 @@ MAE = 0.359
 RMSE = 0.416
 Mean Bias Error = 0.175
 Mean Absolute Percentage Error = 0.116
-Error Standard Deviation = 0.378
+Error Standard Deviation = 0.377
 ---------------------------------------------------------
 OUTLIERS (TEST SET)

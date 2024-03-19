@@ -1,4 +1,4 @@
-12-Mar-2024, 11:47:09
+18-Mar-2024, 15:39:21
 ---------------------------------------------------------
 GNN TRAINING AND PERFORMANCE
 Best epoch: 54
@@ -6,7 +6,7 @@ Dataset Size = 200
 ***************
 Training set
 Set size = 120
-R2 = 0.872
+R2 = 0.873
 MAE = 0.156
 RMSE = 0.200
 Mean Bias Error = -0.118
@@ -18,7 +18,7 @@ Set size = 40
 R2 = 0.932
 MAE = 0.135
 RMSE = 0.176
-Mean Bias Error = -0.091
+Mean Bias Error = -0.090
 Mean Absolute Percentage Error = 0.044
 Error Standard Deviation = 0.151
 ***************
@@ -27,7 +27,7 @@ Set size = 40
 R2 = 0.835
 MAE = 0.200
 RMSE = 0.234
-Mean Bias Error = -0.098
+Mean Bias Error = -0.097
 Mean Absolute Percentage Error = 0.065
 Error Standard Deviation = 0.213
 ---------------------------------------------------------

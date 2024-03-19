@@ -1,4 +1,4 @@
-11-Mar-2024, 16:08:42
+18-Mar-2024, 15:25:53
 ---------------------------------------------------------
 GNN TRAINING AND PERFORMANCE
 Best epoch: 206
@@ -26,7 +26,7 @@ Test set
 Set size = 213
 R2 = 0.962
 MAE = 0.099
-RMSE = 0.133
+RMSE = 0.132
 Mean Bias Error = 0.007
 Mean Absolute Percentage Error = 0.035
 Error Standard Deviation = 0.132
@@ -34,4 +34,4 @@ Error Standard Deviation = 0.132
 OUTLIERS (TEST SET)
 01) 108.vasp    Error: 0.41 eV    (index=14)
 02) 46.vasp    Error: -0.50 eV    (index=86)
-03) 625.vasp    Error: -0.71 eV    (index=123)
+03) 625.vasp    Error: -0.70 eV    (index=123)

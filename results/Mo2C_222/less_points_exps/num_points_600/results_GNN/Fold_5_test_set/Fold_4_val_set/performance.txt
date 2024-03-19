@@ -1,4 +1,4 @@
-12-Mar-2024, 12:13:19
+18-Mar-2024, 16:02:46
 ---------------------------------------------------------
 GNN TRAINING AND PERFORMANCE
 Best epoch: 26
@@ -16,9 +16,9 @@ Error Standard Deviation = 0.159
 Validation set
 Set size = 120
 R2 = 0.937
-MAE = 0.124
+MAE = 0.123
 RMSE = 0.163
-Mean Bias Error = -0.045
+Mean Bias Error = -0.044
 Mean Absolute Percentage Error = 0.046
 Error Standard Deviation = 0.156
 ***************

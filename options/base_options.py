@@ -37,10 +37,17 @@ class BaseOptions:
             )
         
         self.parser.add_argument(
+            '--vor_cut_off',
+            type=float,
+            default=3.5,
+            help='Voronoi cutoff for neighbour search',
+            )
+        
+        self.parser.add_argument(
             '--max_d',
             type=float,
             default=3.5,
-            help='Maximum distance for neighbour search',
+            help='Maximum distance for Gaussian Expansion',
             )
         
         self.parser.add_argument(
