@@ -546,8 +546,8 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
             (rmse_mean_mlr + rmse_mlr_std).max()]))
 
 
-        create_bar_plot(means=(mae_mean_gnn, mae_mean_mlr), stds=(mae_gnn_std, mae_mlr_std), min = minimun, max = maximun, metric = 'MAE', save_path= save_dir, tml_algorithm='Atomistic Potential')
-        create_bar_plot(means=(rmse_mean_gnn, rmse_mean_mlr), stds=(rmse_gnn_std, rmse_mlr_std), min = minimun, max = maximun, metric = 'RMSE', save_path= save_dir, tml_algorithm='Atomistic Potential')
+        create_bar_plot(means=(mae_mean_gnn, mae_mean_mlr), stds=(mae_gnn_std, mae_mlr_std), min = minimun, max = maximun, metric = 'MAE', save_path= save_dir, tml_algorithm='Atomistic Potential', n_folds = opt.folds)
+        create_bar_plot(means=(rmse_mean_gnn, rmse_mean_mlr), stds=(rmse_gnn_std, rmse_mlr_std), min = minimun, max = maximun, metric = 'RMSE', save_path= save_dir, tml_algorithm='Atomistic Potential', n_folds=opt.folds)
 
         r2_mean_gnn = np.array([entry['mean'] for entry in r2_gnn])
         r2_gnn_std = np.array([entry['std'] for entry in r2_gnn])
@@ -565,7 +565,7 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
         (r2_mean_mlr + r2_mlr_std).max(),
         ]))
 
-        create_bar_plot(means=(r2_mean_gnn, r2_mean_mlr), stds=(r2_gnn_std, r2_mlr_std), min = minimun, max = maximun, metric = 'R2', save_path= save_dir, tml_algorithm='Atomistic Potential')
+        create_bar_plot(means=(r2_mean_gnn, r2_mean_mlr), stds=(r2_gnn_std, r2_mlr_std), min = minimun, max = maximun, metric = 'R2', save_path= save_dir, tml_algorithm='Atomistic Potential', n_folds=opt.folds)
         
         results_all['ML_Predicted_Energy(eV)'] = results_all['GNN_energy(eV)'].fillna(results_all['AtomisticPotential_energy(eV)'])
         results_all = results_all.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)

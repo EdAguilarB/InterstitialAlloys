@@ -30,6 +30,13 @@ def train_networt_nested_cv():
 
     # Create the dataset
     carbides = carbide(opt = opt, root=opt.root, filename=opt.filename, max_d=opt.max_d, step=opt.step, name=opt.exp_name)
+    print("Dataset type: ", type(carbides))
+    print("Dataset length: ", carbides.len())
+    print("Dataset node features: ", carbides.num_features)
+    print("Dataset target: ", carbides.num_classes)
+    print("Dataset sample: ", carbides[0])
+    print("Sample  nodes: ", carbides[0].num_nodes)
+    print("Sample  edges: ", carbides[0].num_edges)
 
     # Create the loaders and nested cross validation iterators
     ncv_iterators = create_loaders(carbides, opt)
@@ -107,7 +114,7 @@ def train_networt_nested_cv():
                                 # Early stopping counter is incremented
                                 early_stopping_counter += 1
 
-                        if epoch == opt.epochs-1:
+                        if epoch == opt.epochs:
                             print('Maximum number of epochs reached')
 
                     else:
@@ -154,6 +161,12 @@ def train_networt_nested_cv():
         
         print('All runs completed')
 
+    if device == torch.device('cuda'):
+        with open('{}/device.txt'.format('{current_dir}/{opt.log_dir_results}/{opt.exp_name}/results_GNN'), 'w') as f:
+            print('Device name: {} (GPU)'.format(torch.cuda.get_device_name(0)), file=f)
+            print('CudaDNN_enabled: {}'.format(torch.backends.cudnn.enabled))
+            print('CUDNN_version: {}'.format(torch.backends.cudnn.version()))
+            print('CUDA_version: {}'.format(torch.version.cuda))
 
     if opt.run_tml_training:
         train_tml_model_nested_cv(opt, current_dir)
@@ -168,18 +181,19 @@ def train_networt_nested_cv():
         
         if opt.plot_n_points_exp:
             plot_num_points_exp(os.path.join(current_dir, opt.log_dir_results, opt.exp_name, 'less_points_exps'), opt)
+
+        if opt.run_explanation:
+            explain_model(os.path.join(os.getcwd(), opt.log_dir_results), opt)
     
     if opt.plot_results:
         plot_results(f"{current_dir}/{opt.log_dir_results}", opt)
 
-    if opt.run_explanation:
-        explain_model(os.path.join(os.getcwd(), opt.log_dir_results), opt)
+
 
 opt = BaseOptions().parse()
 
 if __name__ == "__main__":
-    #train_networt_nested_cv()
-    explain_model(os.path.join(os.getcwd(), opt.log_dir_results), opt)
+    train_networt_nested_cv()
     print('Experiment completed')
      
 
