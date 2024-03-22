@@ -173,6 +173,7 @@ def train_networt_nested_cv():
 
     if opt.exp_name == 'Mo2C_222':
         predict_final_test(current_dir, opt)
+        predict_final_test(current_dir, opt, 'Mo2C_211')
 
         if opt.run_n_points_exp:
             for i in range(100, 1001, opt.sampling_size):
@@ -193,7 +194,8 @@ def train_networt_nested_cv():
 opt = BaseOptions().parse()
 
 if __name__ == "__main__":
-    train_networt_nested_cv()
+    #train_networt_nested_cv()
+    predict_final_test(os.getcwd(), opt, 'Mo2C_211')
     print('Experiment completed')
      
 
