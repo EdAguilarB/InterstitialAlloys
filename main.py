@@ -194,8 +194,7 @@ def train_networt_nested_cv():
 opt = BaseOptions().parse()
 
 if __name__ == "__main__":
-    #train_networt_nested_cv()
-    predict_final_test(os.getcwd(), opt, 'Mo2C_211')
+    train_networt_nested_cv()
     print('Experiment completed')
      
 
