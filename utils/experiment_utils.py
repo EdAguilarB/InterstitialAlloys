@@ -363,6 +363,8 @@ def predict_final_test(parent_dir:str, opt: argparse.Namespace, testset = 'Mo2C_
 
             df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
 
+            print('Metrics obtained for the {} test set'.format(testset))
+
             plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
             
         print('All runs completed')
