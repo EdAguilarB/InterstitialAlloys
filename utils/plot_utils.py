@@ -8,6 +8,7 @@ import pandas as pd
 import os
 from seaborn import violinplot, stripplot, kdeplot
 from math import sqrt
+from icecream import ic
 
 
 
@@ -206,6 +207,7 @@ def create_strip_plot(data, save_path:str):
 
 
 def plot_parity_224(df_GNN, df_ap, save_path:str):
+
     
     lr_GNN = LinearRegression()
     lr_GNN.fit(df_GNN[['DFT_energy(eV)']], df_GNN['Mean_Delta_E'])
@@ -227,11 +229,13 @@ def plot_parity_224(df_GNN, df_ap, save_path:str):
 
     plt.plot([df_GNN['DFT_energy(eV)'].min(), df_GNN['DFT_energy(eV)'].max()], [df_GNN['DFT_energy(eV)'].min(), df_GNN['DFT_energy(eV)'].max()], 'k--', label='DFT')
 
-    plt.text(6.5,2, 'MAE GNN: {:.3f}'.format(mean_absolute_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'])))
-    plt.text(6.5,1.5, 'RMSE GNN: {:.3f}'.format(sqrt(mean_squared_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E']))))
-
-    plt.text(6.5,0.5, 'MAE AP: {:.3f}'.format(mean_absolute_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'])))
-    plt.text(6.5,0, 'RMSE AP: {:.3f}'.format(sqrt(mean_squared_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E']))))
+    print('GNN R2: {:.3f}'.format(r2_score(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'])))
+    print('GNN MAE: {:.3f} eV'.format(mean_absolute_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'])))
+    print('GNN RMSE: {:.3f} eV'.format(sqrt(mean_squared_error(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E']))))
+          
+    print('IAP R2: {:.3f}'.format(r2_score(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'])))
+    print('IAP MAE: {:.3f} eV'.format(mean_absolute_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'])))
+    print('IAP RMSE: {:.3f} eV'.format(sqrt(mean_squared_error(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E']))))
 
     plt.xlabel('DFT Calculated $\Delta$E / eV', fontsize=18)
     plt.ylabel('ML predicted $\Delta$E / eV', fontsize=18)

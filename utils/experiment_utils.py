@@ -271,6 +271,8 @@ def predict_final_test(parent_dir:str, opt: argparse.Namespace, testset = 'Mo2C_
     experiments_gnn = os.path.join(current_dir, opt.log_dir_results, testset, 'results_GNN')
     experiments_tml = os.path.join(current_dir, opt.log_dir_results, testset, f'results_atomistic_potential')
 
+    results = pd.DataFrame(columns = ['index', 'Test_Fold', 'Val_Fold', 'Method', 'DFT_energy(eV)', 'ML_Predicted_Energy(eV)'])
+
     if check_dir(experiments_gnn) and check_dir(experiments_tml):
         for outer in range(1, opt.folds+1):
             print('Analysing models trained using as test set {}'.format(outer))
@@ -313,12 +315,55 @@ def predict_final_test(parent_dir:str, opt: argparse.Namespace, testset = 'Mo2C_
                         save_all=False,
                         normalize=True,)
                 
+                df_gnn = pd.read_csv(f'{experiments_gnn}/Fold_{outer}_test_set/Fold_{real_inner}_val_set/predictions_test_set.csv')
+                df_gnn['Test_Fold'] = outer
+                df_gnn['Val_Fold'] = real_inner
+                df_gnn['Method'] = 'GNN'
+
+                results = pd.concat([results, df_gnn], axis=0, ignore_index=True)
+
+                df_tml = pd.read_csv(f'{experiments_tml}/Fold_{outer}_test_set/Fold_{real_inner}_val_set/predictions_test_set.csv')
+                df_tml['Test_Fold'] = outer
+                df_tml['Val_Fold'] = real_inner
+                df_tml['Method'] = 'AtomisticPotential'
+
+                results = pd.concat([results, df_tml], axis=0, ignore_index=True)
+                
                             
             network_outer_report(log_dir=f"{experiments_gnn}/Fold_{outer}_test_set/", 
                                 outer=outer)
             
             network_outer_report(log_dir=f"{experiments_tml}/Fold_{outer}_test_set/", 
                                 outer=outer)
+            
+        save_dir = f'{opt.log_dir_results}/{testset}/GNN_vs_MLR'
+
+        if check_dir(save_dir):
+            os.makedirs(save_dir, exist_ok=True)
+
+            results['ML_Predicted_Energy(eV)'] = results['GNN_energy(eV)'].fillna(results['AtomisticPotential_energy(eV)'])
+            results = results.drop(['GNN_energy(eV)', 'AtomisticPotential_energy(eV)'], axis=1)
+            results['Error'] = results['DFT_energy(eV)'] - results['ML_Predicted_Energy(eV)']
+
+            results.to_csv(f'{save_dir}/all_predictions.csv', index=False)
+
+            df_gnn = results.loc[results['Method'] == 'GNN'].copy()
+
+            for structure in df_gnn['index'].unique():
+                df_gnn.loc[df_gnn['index'] == structure, 'Mean_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
+                df_gnn.loc[df_gnn['index'] == structure, 'Std_Delta_E'] = df_gnn.loc[df_gnn['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+
+            df_gnn = df_gnn.drop_duplicates(subset='index', keep='first')
+
+            df_mlr = results.loc[results['Method'] == 'AtomisticPotential'].copy()
+
+            for structure in df_mlr['index'].unique():
+                df_mlr.loc[df_mlr['index'] == structure, 'Mean_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].mean()
+                df_mlr.loc[df_mlr['index'] == structure, 'Std_Delta_E'] = df_mlr.loc[df_mlr['index'] == structure, 'ML_Predicted_Energy(eV)'].std()
+
+            df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
+
+            plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
             
         print('All runs completed')
 
@@ -603,6 +648,36 @@ def plot_results(exp_dir, opt: argparse.Namespace) -> None:
             df_mlr = df_mlr.drop_duplicates(subset='index', keep='first')
 
             plot_parity_224(df_gnn, df_mlr, save_path=save_dir)
+
+
+def plot_results_testset(exp_dir, opt: argparse.Namespace) -> None:
+    experiments_gnn = os.path.join(exp_dir, opt.exp_name, 'results_GNN')
+    experiments_tml = os.path.join(exp_dir, opt.exp_name, f'results_atomistic_potential')
+    results_224 = pd.DataFrame(columns = ['index', 'Test_Fold', 'Val_Fold', 'Method', 'DFT_energy(eV)', 'ML_Predicted_Energy(eV)'])
+    experiments_gnn_224 = os.path.join(exp_dir, 'Mo2C_224', 'results_GNN')
+    experiments_tml_224 = os.path.join(exp_dir, 'Mo2C_224', f'results_atomistic_potential')
+
+    for outer in range(1, opt.folds+1):
+        for inner in range(1, opt.folds):
+            real_inner = inner +1 if outer <= inner else inner
+            gnn_dir = os.path.join(experiments_gnn_224, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+            df_gnn_224 = pd.read_csv(gnn_dir+'/predictions_test_set.csv')
+            df_gnn_224['Test_Fold'] = outer
+            df_gnn_224['Val_Fold'] = real_inner
+            df_gnn_224['Method'] = 'GNN'
+
+            results_224 = pd.concat([results_224, df_gnn_224], axis=0, ignore_index=True)
+
+            tml_dir = os.path.join(experiments_tml_224, f'Fold_{outer}_test_set', f'Fold_{real_inner}_val_set')
+            df_tml_224 = pd.read_csv(tml_dir+'/predictions_test_set.csv')
+            df_tml_224['Test_Fold'] = outer
+            df_tml_224['Val_Fold'] = real_inner
+            df_tml_224['Method'] = 'AtomisticPotential'
+
+            results_224 = pd.concat([results_224, df_tml_224], axis=0, ignore_index=True)
+
+
+            
 
 
 def plot_num_points_exp(exp_dir, opt: argparse.Namespace) -> None:
