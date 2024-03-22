@@ -255,21 +255,21 @@ def train_networt_less_points(opt: argparse.Namespace, current_dir:str, n_points
 
 
 
-def predict_final_test(parent_dir:str, opt: argparse.Namespace) -> None:
+def predict_final_test(parent_dir:str, opt: argparse.Namespace, testset = 'Mo2C_224') -> None:
 
     opt = BaseOptions().parse()
 
     current_dir = parent_dir
     
     # Load the final test set
-    final_test = carbide(opt, opt.root, opt.filename, opt.max_d, opt.step, 'Mo2C_224', include_fold=False, norm=False)
+    final_test = carbide(opt, opt.root, opt.filename, opt.max_d, opt.step, testset, include_fold=False, norm=False)
     test_loader = DataLoader(final_test, shuffle=False)
 
     # Load the data for tml
-    test_set = pd.read_csv(f'{opt.root}/Mo2C_224/{opt.filename}')
+    test_set = pd.read_csv(f'{opt.root}/{testset}/{opt.filename}')
 
-    experiments_gnn = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_224', 'results_GNN')
-    experiments_tml = os.path.join(current_dir, opt.log_dir_results, 'Mo2C_224', f'results_atomistic_potential')
+    experiments_gnn = os.path.join(current_dir, opt.log_dir_results, testset, 'results_GNN')
+    experiments_tml = os.path.join(current_dir, opt.log_dir_results, testset, f'results_atomistic_potential')
 
     if check_dir(experiments_gnn) and check_dir(experiments_tml):
         for outer in range(1, opt.folds+1):
