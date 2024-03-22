@@ -219,11 +219,11 @@ def plot_parity_224(df_GNN, df_ap, save_path:str):
 
     plt.figure(dpi=300)
 
-    plt.scatter(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'], label='GNN', c='#1f77b4')
+    plt.scatter(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'], label='CGNet', c='#1f77b4')
     plt.errorbar(df_GNN['DFT_energy(eV)'], df_GNN['Mean_Delta_E'], yerr=df_GNN['Std_Delta_E'], fmt='o', markersize=5,  capsize=3, c='#1f77b4')
     plt.plot(df_GNN['DFT_energy(eV)'], predicted_Delta_E_GNN,  c='#1f77b4')
 
-    plt.scatter(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'], label = 'Atomistic Potential', c ='#ff7f0e')
+    plt.scatter(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'], label = 'IAP', c ='#ff7f0e')
     plt.errorbar(df_ap['DFT_energy(eV)'], df_ap['Mean_Delta_E'], yerr=df_ap['Std_Delta_E'], fmt='o', markersize=5,  capsize=3, c= '#ff7f0e')
     plt.plot(df_ap['DFT_energy(eV)'], predicted_Delta_E_ap, c='#ff7f0e')
 
